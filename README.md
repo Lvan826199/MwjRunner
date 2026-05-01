@@ -1,41 +1,151 @@
 # MwjRunner
 
-#### 介绍
-让接口自动化，像梦一样流畅执行
+让接口自动化，像梦一样流畅执行。
 
-梦无矶·MwjRunner —— 接口自动化的执行引擎
+梦无矶·MwjRunner —— 接口自动化的执行引擎。
 
-Run APIs, Run Dreams
+Run APIs, Run Dreams.
 
-#### 软件架构
-软件架构说明
+## 项目定位
 
+MwjRunner 是一个基于 Python 的接口自动化测试执行引擎，目标是提供自有的接口测试发现、执行、断言、报告和 CI 集成能力。
 
-#### 安装教程
+本项目不是 pytest + Allure 的封装，而是面向接口自动化场景建设专有执行引擎：
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+- 自研测试执行调度。
+- 自研断言体系。
+- 自研测试报告。
+- 首期聚焦 HTTP API 功能自动化测试。
 
-#### 使用说明
+## 核心约束
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+- 不使用 pytest 作为核心执行或断言框架。
+- 不使用 Allure 作为报告框架。
+- 断言结果使用项目自有结构化模型。
+- 报告由项目自有 Reporter 生成。
+- 日志和报告必须对 token、password、cookie、secret、authorization 等敏感信息脱敏。
 
-#### 参与贡献
+## 推荐技术方向
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+| 分类 | 推荐方案 |
+| --- | --- |
+| 语言 | Python >= 3.13 |
+| 依赖管理 | UV |
+| HTTP 客户端 | httpx |
+| 用例格式 | YAML、JSON |
+| CLI | Typer 或 argparse |
+| 断言 | 项目自研 Assertion Registry |
+| 报告 | Console、JSON、单文件 HTML |
+| 配置 | YAML / 环境变量 / CLI 参数 |
+| 并发 | concurrent.futures 或 asyncio |
 
+## 核心能力规划
 
-#### 特技
+### 1. 用例管理
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+- 支持 project、suite、case、step 结构。
+- 支持 YAML / JSON 用例。
+- 支持 tags、priority、skip、retry、fail-fast。
+- 支持数据驱动。
+
+### 2. HTTP 执行
+
+- 支持 GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS。
+- 支持 query、headers、cookies、form、json、body、files。
+- 支持 timeout、proxy、SSL 验证、重定向控制。
+- 支持请求前变量渲染和响应后变量提取。
+
+### 3. 自研断言
+
+计划内置断言：
+
+- status_code。
+- json_path。
+- body_contains。
+- header。
+- regex。
+- schema。
+- response_time。
+- equals / not_equals / contains / type / length / range。
+
+### 4. 自研报告
+
+首期报告输出：
+
+- 控制台摘要。
+- JSON 结构化报告。
+- 单文件 HTML 报告。
+
+报告应包含执行概览、suite/case/step 明细、请求响应、断言结果、失败原因、重试记录和脱敏后的日志信息。
+
+### 5. CLI
+
+推荐命令：
+
+```bash
+mwjrunner run tests/api --env test --tags smoke --report html,json
+mwjrunner run tests/api/login.yaml --case 用户登录流程
+mwjrunner validate tests/api
+mwjrunner init
+```
+
+推荐退出码：
+
+- `0`：全部通过或仅跳过。
+- `1`：存在失败断言。
+- `2`：用例加载或配置错误。
+- `3`：执行引擎内部错误。
+
+## 文档
+
+项目规划文档位于 `doc/`：
+
+- `doc/需求规格说明书.md`：需求规格说明书。
+- `doc/技术方案.md`：技术方案。
+
+Claude Code 项目指南位于：
+
+- `CLAUDE.md`。
+
+项目技能和插件：
+
+- `.claude/code-review/SKILL.md`：提交前代码与文档审查。
+- 官方 `superpowers@claude-plugins-official` 插件：复杂任务和质量门禁工作流，当前项目可直接使用；如需项目作用域安装，执行 `claude plugin install -s project superpowers@claude-plugins-official`。
+- `.claude/req-doc-generator/SKILL.md`：需求文档生成辅助。
+- `.claude/ui-ux-pro-max/SKILL.md`：后续 HTML 报告 UI/UX 设计参考。
+
+必须使用 `superpowers@claude-plugins-official` 的场景：
+
+- 实现或调整 CLI、执行引擎、调度、断言、报告、变量、HTTP 协议等核心能力。
+- 修改需求、技术方案、README、CLAUDE.md 或核心约束。
+- 进行跨文件重构、提交前质量门禁、风险较高或影响范围不明确的任务。
+
+## 提交规范
+
+提交代码前必须进行 code review。
+
+推荐流程：
+
+1. 查看变更范围。
+2. 使用 `.claude/code-review/SKILL.md` 审查。
+3. 处理 P0/P1 问题。
+4. 运行可用的静态检查或测试命令。
+5. 精确暂存相关文件。
+6. 使用 Conventional Commits 提交。
+
+推荐提交信息：
+
+```bash
+git commit -m "docs: initialize MwjRunner requirements and guidance"
+```
+
+## 里程碑
+
+1. 最小引擎：CLI run、YAML 加载、HTTP 请求、基础断言、JSON 报告、控制台摘要。
+2. 变量与报告：环境配置、变量渲染、提取、HTML 报告、脱敏。
+3. 调度能力：tags、priority、retry、fail-fast、数据驱动、有限并发。
+4. 可扩展能力：断言、提取器、报告器、数据源和协议插件。
+
+## 当前状态
+
+当前项目处于需求与技术方案初始化阶段，尚未实现核心执行引擎。
