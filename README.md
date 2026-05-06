@@ -102,6 +102,8 @@ mwjrunner init
 
 - `doc/需求规格说明书.md`：需求规格说明书。
 - `doc/技术方案.md`：技术方案。
+- `doc/下一步计划.md`：后续任务计划，所有开发任务必须先进入该文档再执行。
+- `doc/使用手册.md`：面向新手的项目使用手册，示例需与 FastAPI 示例服务联动。
 
 Claude Code 项目指南位于：
 
@@ -119,6 +121,25 @@ Claude Code 项目指南位于：
 - 实现或调整 CLI、执行引擎、调度、断言、报告、变量、HTTP 协议等核心能力。
 - 修改需求、技术方案、README、CLAUDE.md 或核心约束。
 - 进行跨文件重构、提交前质量门禁、风险较高或影响范围不明确的任务。
+
+## 示例服务与使用手册
+
+后续将在 `examples/api/` 中提供一个独立 FastAPI 示例接口服务，并使用 UV 单独管理环境。该服务用于支撑项目使用手册、示例 YAML 用例和 MwjRunner 引擎开发验证。
+
+示例服务计划提供：
+
+- `GET /health`：健康检查。
+- `POST /api/login`：登录并返回 token。
+- `GET /api/profile`：携带 token 获取用户信息。
+- `GET /api/items`：查询示例数据。
+- `POST /api/items`：创建示例数据。
+- `GET /api/error`：固定错误响应，用于演示断言失败。
+
+使用手册位于 `doc/使用手册.md`，要求面向新手，包含操作说明、命令示例、预期结果、常见问题，并与 `examples/api/` 的接口保持一致。
+
+## 开发测试边界
+
+MwjRunner 不得使用 pytest 作为核心执行框架或核心断言机制。pytest 仅允许作为项目自身 Python 代码和 `examples/api/` 示例服务的开发测试工具，不得进入 MwjRunner 的用户用例发现、执行、断言或报告链路。
 
 ## 提交规范
 
@@ -148,4 +169,4 @@ git commit -m "docs: initialize MwjRunner requirements and guidance"
 
 ## 当前状态
 
-当前项目处于需求与技术方案初始化阶段，尚未实现核心执行引擎。
+当前项目处于文档先行阶段，尚未实现核心执行引擎。下一步先维护 `doc/下一步计划.md` 和 `doc/使用手册.md`，再按计划实现 `examples/api/` FastAPI 示例服务、示例用例和 M1 最小执行闭环。
