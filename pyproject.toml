@@ -4,3 +4,9 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.13"
 dependencies = []
+
+[project.scripts]
+mwjrunner = "mwjrunner.cli:main"
+
+[tool.uv]
+package = true

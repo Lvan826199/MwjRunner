@@ -169,4 +169,4 @@ git commit -m "docs: initialize MwjRunner requirements and guidance"
 
 ## 当前状态
 
-当前项目已完成基础规划文档、FastAPI 示例服务和示例 YAML 用例；核心执行引擎和 CLI 尚未实现。下一步按 `doc/下一步计划.md` 执行 T4，建立 M1 项目骨架和 `mwjrunner` CLI。
+当前项目已完成基础规划文档、FastAPI 示例服务、示例 YAML 用例、M1 最小包骨架和 `mwjrunner run` CLI help；核心执行引擎尚未实现。下一步按 `doc/下一步计划.md` 执行 T5，实现 YAML 用例加载和校验。
