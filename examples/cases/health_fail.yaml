@@ -1,0 +1,15 @@
+name: 健康检查失败示例
+tags: [demo, fail]
+steps:
+  - name: 故意写错健康状态
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_path
+        path: $.status
+        expected: down
+      - type: body_contains
+        expected: service unavailable

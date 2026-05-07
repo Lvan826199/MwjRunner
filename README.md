@@ -124,9 +124,9 @@ Claude Code 项目指南位于：
 
 ## 示例服务与使用手册
 
-后续将在 `examples/api/` 中提供一个独立 FastAPI 示例接口服务，并使用 UV 单独管理环境。该服务用于支撑项目使用手册、示例 YAML 用例和 MwjRunner 引擎开发验证。
+`examples/api/` 已提供一个独立 FastAPI 示例接口服务，并使用 UV 单独管理环境。该服务用于支撑项目使用手册、示例 YAML 用例和 MwjRunner 引擎开发验证。
 
-示例服务计划提供：
+示例服务已提供：
 
 - `GET /health`：健康检查。
 - `POST /api/login`：登录并返回 token。
@@ -169,4 +169,4 @@ git commit -m "docs: initialize MwjRunner requirements and guidance"
 
 ## 当前状态
 
-当前项目处于文档先行阶段，尚未实现核心执行引擎。下一步先维护 `doc/下一步计划.md` 和 `doc/使用手册.md`，再按计划实现 `examples/api/` FastAPI 示例服务、示例用例和 M1 最小执行闭环。
+当前项目已完成基础规划文档、FastAPI 示例服务和示例 YAML 用例；核心执行引擎和 CLI 尚未实现。下一步按 `doc/下一步计划.md` 执行 T4，建立 M1 项目骨架和 `mwjrunner` CLI。

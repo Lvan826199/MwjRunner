@@ -49,7 +49,7 @@ MwjRunner 是一个基于 Python 的接口自动化测试执行引擎。
 
 ## 示例服务约定
 
-后续在 `examples/api/` 中提供独立 FastAPI 示例接口服务，并使用 UV 单独管理环境。该服务用于支撑 `doc/使用手册.md`、`examples/cases/` 示例用例和 MwjRunner 引擎开发验证。
+`examples/api/` 已提供独立 FastAPI 示例接口服务，并使用 UV 单独管理环境。该服务用于支撑 `doc/使用手册.md`、`examples/cases/` 示例用例和 MwjRunner 引擎开发验证。
 
 示例服务必须与主引擎解耦，不能污染主项目依赖。使用手册中的接口示例、YAML 示例和命令必须与 `examples/api/` 的真实接口保持一致。
 

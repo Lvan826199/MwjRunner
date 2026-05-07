@@ -1,0 +1,28 @@
+name: 登录成功
+tags: [smoke, auth]
+variables:
+  username: demo
+  password: "123456"
+steps:
+  - name: 使用正确账号登录
+    request:
+      method: POST
+      url: /api/login
+      headers:
+        Content-Type: application/json
+      json:
+        username: ${username}
+        password: ${password}
+    extract:
+      token: $.data.token
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_path
+        path: $.code
+        expected: 0
+      - type: json_path
+        path: $.data.token
+        expected: demo-token
+      - type: body_contains
+        expected: success
