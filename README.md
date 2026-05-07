@@ -111,10 +111,10 @@ Claude Code 项目指南位于：
 
 项目技能和插件：
 
-- `.claude/code-review/SKILL.md`：提交前代码与文档审查。
+- `.claude/skills/code-review/SKILL.md`：提交前代码与文档审查。
 - 官方 `superpowers@claude-plugins-official` 插件：复杂任务和质量门禁工作流，当前项目可直接使用；如需项目作用域安装，执行 `claude plugin install -s project superpowers@claude-plugins-official`。
-- `.claude/req-doc-generator/SKILL.md`：需求文档生成辅助。
-- `.claude/ui-ux-pro-max/SKILL.md`：后续 HTML 报告 UI/UX 设计参考。
+- `.claude/skills/req-doc-generator/SKILL.md`：需求文档生成辅助。
+- `.claude/skills/ui-ux-pro-max/SKILL.md`：后续 HTML 报告 UI/UX 设计参考。
 
 必须使用 `superpowers@claude-plugins-official` 的场景：
 
@@ -148,7 +148,7 @@ MwjRunner 不得使用 pytest 作为核心执行框架或核心断言机制。py
 推荐流程：
 
 1. 查看变更范围。
-2. 使用 `.claude/code-review/SKILL.md` 审查。
+2. 使用 `.claude/skills/code-review/SKILL.md` 审查。
 3. 处理 P0/P1 问题。
 4. 运行可用的静态检查或测试命令。
 5. 精确暂存相关文件。
@@ -169,4 +169,4 @@ git commit -m "docs: initialize MwjRunner requirements and guidance"
 
 ## 当前状态
 
-当前项目已完成基础规划文档、FastAPI 示例服务、示例 YAML 用例、M1 最小包骨架和 `mwjrunner run` CLI help；核心执行引擎尚未实现。下一步按 `doc/下一步计划.md` 执行 T5，实现 YAML 用例加载和校验。
+当前项目已完成基础规划文档、FastAPI 示例服务、示例 YAML 用例、M1 最小包骨架、`mwjrunner run` CLI help，以及 YAML 用例加载和校验；核心 HTTP 执行引擎尚未实现。下一步按 `doc/下一步计划.md` 执行 T6，实现 HTTP 请求执行。

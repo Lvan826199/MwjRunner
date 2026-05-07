@@ -1,0 +1,2 @@
+[console_scripts]
+mwjrunner = mwjrunner.cli:main

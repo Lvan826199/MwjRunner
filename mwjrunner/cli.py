@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 
-
 RUN_NOT_IMPLEMENTED_EXIT_CODE = 3
 
 
