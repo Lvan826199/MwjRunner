@@ -169,4 +169,4 @@ git commit -m "docs: initialize MwjRunner requirements and guidance"
 
 ## 当前状态
 
-当前项目已完成基础规划文档、FastAPI 示例服务、示例 YAML 用例、M1 最小包骨架、`mwjrunner run` CLI help，以及 YAML 用例加载和校验；核心 HTTP 执行引擎尚未实现。下一步按 `doc/下一步计划.md` 执行 T6，实现 HTTP 请求执行。
+当前项目已完成基础规划文档、FastAPI 示例服务、示例 YAML 用例、M1 最小包骨架、`mwjrunner run` CLI help、YAML 用例加载和校验，以及 HTTP 请求执行。下一步按 `doc/下一步计划.md` 执行 T7，实现自研基础断言。

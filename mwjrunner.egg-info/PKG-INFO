@@ -4,5 +4,6 @@ Version: 0.1.0
 Summary: Add your description here
 Requires-Python: >=3.13
 License-File: LICENSE
+Requires-Dist: httpx>=0.28.1
 Requires-Dist: pyyaml>=6.0.3
 Dynamic: license-file

@@ -13,3 +13,6 @@ mwjrunner/cases/__init__.py
 mwjrunner/cases/errors.py
 mwjrunner/cases/loader.py
 mwjrunner/cases/model.py
+mwjrunner/http/__init__.py
+mwjrunner/http/executor.py
+mwjrunner/http/model.py
