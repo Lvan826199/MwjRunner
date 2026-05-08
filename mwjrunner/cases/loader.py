@@ -40,7 +40,9 @@ def load_yaml_case(file_path: str | Path) -> TestCase:
 def parse_case(raw_case: Any, source_file: str) -> TestCase:
     """将 YAML 原始对象转换成内部用例模型。"""
     if not isinstance(raw_case, dict):
-        raise _error(source_file, "$", "用例文件顶层必须是对象。", "请使用 name、tags、variables、steps 等字段定义用例。")
+        raise _error(
+            source_file, "$", "用例文件顶层必须是对象。", "请使用 name、tags、variables、steps 等字段定义用例。"
+        )
 
     name = _required_string(raw_case, "name", source_file, "请在用例顶层增加 name 字段，例如 name: 健康检查。")
     tags = _optional_string_list(raw_case, "tags", source_file)
@@ -54,13 +56,17 @@ def _parse_steps(raw_steps: Any, source_file: str) -> list[TestStep]:
     if raw_steps is None:
         raise _error(source_file, "steps", "缺少必填字段 steps。", "请增加 steps 列表，并至少包含一个请求步骤。")
     if not isinstance(raw_steps, list) or not raw_steps:
-        raise _error(source_file, "steps", "steps 必须是非空列表。", "请按 steps: 下方缩进编写 - name: ... 的步骤列表。")
+        raise _error(
+            source_file, "steps", "steps 必须是非空列表。", "请按 steps: 下方缩进编写 - name: ... 的步骤列表。"
+        )
 
     steps: list[TestStep] = []
     for index, raw_step in enumerate(raw_steps):
         field = f"steps[{index}]"
         if not isinstance(raw_step, dict):
-            raise _error(source_file, field, "step 必须是对象。", "请使用 name、request、assertions、extract 等字段定义步骤。")
+            raise _error(
+                source_file, field, "step 必须是对象。", "请使用 name、request、assertions、extract 等字段定义步骤。"
+            )
         name = _required_string(raw_step, "name", source_file, f"请在 {field} 增加 name 字段。", field)
         request = _parse_request(raw_step.get("request"), source_file, f"{field}.request")
         assertions = _parse_assertions(raw_step.get("assertions", []), source_file, f"{field}.assertions")
@@ -76,7 +82,9 @@ def _parse_request(raw_request: Any, source_file: str, field: str) -> RequestSpe
     if not isinstance(raw_request, dict):
         raise _error(source_file, field, "request 必须是对象。", "请使用 request.method 和 request.url 定义请求。")
 
-    method = _required_string(raw_request, "method", source_file, f"请在 {field} 增加 method，例如 method: GET。", field)
+    method = _required_string(
+        raw_request, "method", source_file, f"请在 {field} 增加 method，例如 method: GET。", field
+    )
     url = _required_string(raw_request, "url", source_file, f"请在 {field} 增加 url，例如 url: /health。", field)
     headers = _optional_mapping(raw_request, "headers", source_file, field)
     query = _optional_mapping(raw_request, "query", source_file, field)
@@ -102,28 +110,50 @@ def _parse_assertions(raw_assertions: Any, source_file: str, field: str) -> list
     if raw_assertions is None:
         return []
     if not isinstance(raw_assertions, list):
-        raise _error(source_file, field, "assertions 必须是列表。", "请使用 assertions: 下方缩进编写 - type: status_code。")
+        raise _error(
+            source_file, field, "assertions 必须是列表。", "请使用 assertions: 下方缩进编写 - type: status_code。"
+        )
 
     assertions: list[AssertionSpec] = []
     for index, raw_assertion in enumerate(raw_assertions):
         item_field = f"{field}[{index}]"
         if not isinstance(raw_assertion, dict):
             raise _error(source_file, item_field, "断言必须是对象。", "请使用 type、expected、path 等字段定义断言。")
-        assertion_type = _required_string(raw_assertion, "type", source_file, f"请在 {item_field} 增加 type 字段。", item_field)
+        assertion_type = _required_string(
+            raw_assertion, "type", source_file, f"请在 {item_field} 增加 type 字段。", item_field
+        )
         if "expected" not in raw_assertion:
-            raise _error(source_file, f"{item_field}.expected", "断言缺少 expected 字段。", "请填写断言期望值，例如 expected: 200。")
+            raise _error(
+                source_file,
+                f"{item_field}.expected",
+                "断言缺少 expected 字段。",
+                "请填写断言期望值，例如 expected: 200。",
+            )
         path = raw_assertion.get("path")
         if assertion_type == "json_path" and not isinstance(path, str):
-            raise _error(source_file, f"{item_field}.path", "json_path 断言必须填写 path。", "请填写 JSONPath，例如 path: $.status。")
+            raise _error(
+                source_file,
+                f"{item_field}.path",
+                "json_path 断言必须填写 path。",
+                "请填写 JSONPath，例如 path: $.status。",
+            )
         mode = raw_assertion.get("mode", "soft")
         if not isinstance(mode, str):
             raise _error(source_file, f"{item_field}.mode", "断言 mode 必须是字符串。", "请填写 soft 或 hard。")
+        target = raw_assertion.get("target")
+        if target is not None and not isinstance(target, str):
+            raise _error(
+                source_file,
+                f"{item_field}.target",
+                "断言 target 必须是字符串。",
+                "请填写响应字段目标名称，或删除 target 字段。",
+            )
         assertions.append(
             AssertionSpec(
                 type=assertion_type,
                 expected=raw_assertion["expected"],
                 path=path,
-                target=raw_assertion.get("target"),
+                target=target,
                 mode=mode,
             )
         )
@@ -134,7 +164,9 @@ def _parse_extract(raw_extract: Any, source_file: str, field: str) -> list[Extra
     if raw_extract is None:
         return []
     if not isinstance(raw_extract, dict):
-        raise _error(source_file, field, "extract 必须是对象。", "请使用 extract: token: $.data.token 的形式定义提取变量。")
+        raise _error(
+            source_file, field, "extract 必须是对象。", "请使用 extract: token: $.data.token 的形式定义提取变量。"
+        )
 
     extracts: list[ExtractSpec] = []
     for name, raw_value in raw_extract.items():
@@ -149,14 +181,31 @@ def _parse_extract(raw_extract: Any, source_file: str, field: str) -> list[Extra
             path = raw_value.get("path")
             optional = raw_value.get("optional", False)
             if not isinstance(extract_type, str):
-                raise _error(source_file, f"{item_field}.type", "extract type 必须是字符串。", "请填写 json_path、header、cookie 或 regex。")
+                raise _error(
+                    source_file,
+                    f"{item_field}.type",
+                    "extract type 必须是字符串。",
+                    "请填写 json_path、header、cookie 或 regex。",
+                )
             if not isinstance(path, str) or not path:
-                raise _error(source_file, f"{item_field}.path", "extract path 必须是非空字符串。", "请填写提取路径，例如 path: $.data.token。")
+                raise _error(
+                    source_file,
+                    f"{item_field}.path",
+                    "extract path 必须是非空字符串。",
+                    "请填写提取路径，例如 path: $.data.token。",
+                )
             if not isinstance(optional, bool):
-                raise _error(source_file, f"{item_field}.optional", "extract optional 必须是布尔值。", "请填写 true 或 false。")
+                raise _error(
+                    source_file, f"{item_field}.optional", "extract optional 必须是布尔值。", "请填写 true 或 false。"
+                )
             extracts.append(ExtractSpec(name=name, type=extract_type, path=path, optional=optional))
             continue
-        raise _error(source_file, item_field, "extract 值必须是字符串或对象。", "请使用 token: $.data.token 或 token: {type: json_path, path: $.data.token}。")
+        raise _error(
+            source_file,
+            item_field,
+            "extract 值必须是字符串或对象。",
+            "请使用 token: $.data.token 或 token: {type: json_path, path: $.data.token}。",
+        )
     return extracts
 
 

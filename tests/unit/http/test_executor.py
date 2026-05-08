@@ -186,6 +186,15 @@ steps:
         assert "raw-access-token" not in snapshot.body
         assert "***REDACTED***" in snapshot.body
 
+    def test_response_snapshot_redacts_sensitive_headers(self) -> None:
+        """测试响应快照响应头敏感字段脱敏。"""
+        executor = HttpExecutor()
+
+        headers = executor._redact_mapping({"set-cookie": "session=raw-cookie", "x-trace-id": "trace-001"})
+
+        assert headers["set-cookie"] == "***REDACTED***"
+        assert headers["x-trace-id"] == "trace-001"
+
     def test_response_body_redacts_json_sensitive_fields(self) -> None:
         """测试响应体 JSON 敏感字段脱敏。"""
         executor = HttpExecutor()

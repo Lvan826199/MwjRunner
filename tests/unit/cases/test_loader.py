@@ -95,6 +95,31 @@ steps:
         assert case.steps[0].assertions[1].path == "$.status"
         assert case.steps[0].assertions[1].expected == "ok"
 
+    def test_assertion_target_must_be_string_when_present(self, tmp_path: Path) -> None:
+        """测试断言 target 字段必须是字符串。"""
+        case_file = tmp_path / "invalid_target.yaml"
+        case_file.write_text(
+            """
+name: 无效 target 用例
+steps:
+  - name: 步骤1
+    request:
+      method: GET
+      url: /test
+    assertions:
+      - type: status_code
+        expected: 200
+        target: 123
+""",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(CaseLoadError) as exc_info:
+            load_yaml_case(case_file)
+
+        assert "target" in exc_info.value.field
+        assert "字符串" in exc_info.value.message
+
     def test_load_case_with_extract_shorthand(self, tmp_path: Path) -> None:
         """测试加载包含提取变量简写语法的用例。"""
         case_file = tmp_path / "with_extract.yaml"
