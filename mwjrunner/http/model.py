@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -36,8 +37,6 @@ class HttpResponse:
 
     def json(self) -> Any:
         """解析响应为 JSON。"""
-        import json
-
         return json.loads(self.text)
 
 

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
+import httpx
 import pytest
 
 from mwjrunner.cases import load_yaml_case
@@ -32,13 +34,9 @@ steps:
         case = load_yaml_case(case_file)
         executor = HttpExecutor()
 
-        # 如果 httpx 已安装，跳过此测试
-        try:
-            import httpx  # noqa: F401
-
-            pytest.skip("httpx 已安装，跳过依赖缺失测试")
-        except ImportError:
-            pass
+        # 如果 httpx 已安装, 跳过此测试
+        if importlib.util.find_spec("httpx") is not None:
+            pytest.skip("httpx 已安装, 跳过依赖缺失测试")
 
         result = executor.execute(case.steps[0].request)
 
@@ -145,3 +143,67 @@ steps:
 
         executor_custom = HttpExecutor(default_timeout=10.0)
         assert executor_custom.default_timeout == 10.0
+
+    def test_request_snapshot_redacts_sensitive_fields(self, tmp_path: Path) -> None:
+        """测试请求快照脱敏敏感字段。"""
+        case_file = tmp_path / "test.yaml"
+        case_file.write_text(
+            """
+name: 测试用例
+steps:
+  - name: 登录
+    request:
+      method: POST
+      url: /api/login?token=raw-query-token&keyword=admin
+      headers:
+        Authorization: Bearer raw-token
+        X-Trace-Id: trace-001
+      cookies:
+        session: raw-cookie
+      json:
+        username: admin
+        password: raw-password
+        nested:
+          access_token: raw-access-token
+""",
+            encoding="utf-8",
+        )
+
+        case = load_yaml_case(case_file)
+        executor = HttpExecutor(base_url="http://localhost:8000")
+
+        snapshot = executor._build_request_snapshot(case.steps[0].request)
+
+        assert snapshot.method == "POST"
+        assert snapshot.url.startswith("http://localhost:8000/api/login?")
+        assert "raw-query-token" not in snapshot.url
+        assert "keyword=admin" in snapshot.url
+        assert snapshot.headers["Authorization"] == "***REDACTED***"
+        assert snapshot.headers["X-Trace-Id"] == "trace-001"
+        assert snapshot.cookies["session"] == "***REDACTED***"
+        assert snapshot.body is not None
+        assert "raw-password" not in snapshot.body
+        assert "raw-access-token" not in snapshot.body
+        assert "***REDACTED***" in snapshot.body
+
+    def test_response_body_redacts_json_sensitive_fields(self) -> None:
+        """测试响应体 JSON 敏感字段脱敏。"""
+        executor = HttpExecutor()
+        response = httpx.Response(
+            status_code=200,
+            headers={"content-type": "application/json", "set-cookie": "session=raw-cookie"},
+            json={
+                "code": 0,
+                "data": {
+                    "token": "raw-token",
+                    "profile": {"name": "admin", "secret": "raw-secret"},
+                },
+            },
+        )
+
+        body = executor._redact_response_body(response).decode("utf-8")
+
+        assert "raw-token" not in body
+        assert "raw-secret" not in body
+        assert "admin" in body
+        assert "***REDACTED***" in body
