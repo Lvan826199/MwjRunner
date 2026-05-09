@@ -90,3 +90,71 @@ def test_run_result_to_dict_contains_required_report_sections() -> None:
     assert data["cases"][0]["steps"][0]["assertions"][0]["passed"] is True
     assert data["cases"][0]["steps"][0]["extracts"][0]["extracted"] is True
     assert data["errors"] == []
+
+
+def test_run_result_to_dict_redacts_sensitive_values() -> None:
+    """测试报告模型兜底脱敏敏感字段和值。"""
+    assertion = AssertionResult(
+        type="body_equals",
+        passed=False,
+        expected="raw-token",
+        actual="raw-token",
+        path="$.data.token",
+        target="body",
+        message="authorization=Bearer raw-auth",
+    )
+    extract = ExtractResult(
+        name="access_token",
+        type="json_path",
+        path="$.data.access_token",
+        value="raw-access-token",
+        extracted=True,
+        message="token=raw-token",
+    )
+    step = StepResult(
+        name="登录",
+        status="failed",
+        request=HttpRequest(
+            method="POST",
+            url="http://example.com/login?token=raw-query-token&keyword=admin",
+            headers={"Authorization": "Bearer raw-header-token"},
+            cookies={"session": "raw-cookie"},
+            body='{"password":"raw-password","username":"admin"}',
+        ),
+        response=HttpResponse(
+            status_code=200,
+            headers={"set-cookie": "session=raw-cookie"},
+            cookies={"session": "raw-cookie"},
+            body=b'{"refresh_token":"raw-refresh-token","username":"admin"}',
+            elapsed_ms=10.0,
+        ),
+        assertions=[assertion],
+        extracts=[extract],
+        errors=["password=raw-password"],
+    )
+    case = CaseResult(name="登录用例", status="failed", steps=[step], errors=["token=raw-case-token"])
+    result = RunResult(
+        run_id="run-redaction-001",
+        started_at=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
+        ended_at=None,
+        summary=Summary(total_cases=1, failed_cases=1),
+        cases=[case],
+        errors=["authorization=Bearer raw-run-auth"],
+    )
+
+    data = result.to_dict()
+    serialized = str(data)
+
+    assert "raw-query-token" not in serialized
+    assert "raw-header-token" not in serialized
+    assert "raw-cookie" not in serialized
+    assert "raw-password" not in serialized
+    assert "raw-refresh-token" not in serialized
+    assert "raw-token" not in serialized
+    assert "raw-access-token" not in serialized
+    assert "raw-case-token" not in serialized
+    assert "raw-run-auth" not in serialized
+    assert data["cases"][0]["steps"][0]["assertions"][0]["expected"] == "***REDACTED***"
+    assert data["cases"][0]["steps"][0]["assertions"][0]["actual"] == "***REDACTED***"
+    assert data["cases"][0]["steps"][0]["extracts"][0]["value"] == "***REDACTED***"
+    assert "username" in serialized

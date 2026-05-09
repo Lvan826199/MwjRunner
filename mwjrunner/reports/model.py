@@ -8,6 +8,16 @@ from typing import Any
 
 from mwjrunner.assertions.model import AssertionResult
 from mwjrunner.http.model import HttpRequest, HttpResponse
+from mwjrunner.utils.masking import (
+    REDACTED,
+    is_sensitive_key,
+    redact_body,
+    redact_cookies,
+    redact_mapping,
+    redact_text,
+    redact_url,
+    redact_value,
+)
 from mwjrunner.variables.engine import ExtractResult
 
 
@@ -68,7 +78,7 @@ class StepResult:
             "response": _response_to_dict(self.response),
             "assertions": [_assertion_to_dict(assertion) for assertion in self.assertions],
             "extracts": [_extract_to_dict(extract) for extract in self.extracts],
-            "errors": list(self.errors),
+            "errors": [redact_text(error) for error in self.errors],
             "elapsed_ms": self.elapsed_ms,
         }
 
@@ -90,7 +100,7 @@ class CaseResult:
             "source_file": self.source_file,
             "status": self.status,
             "steps": [step.to_dict() for step in self.steps],
-            "errors": list(self.errors),
+            "errors": [redact_text(error) for error in self.errors],
         }
 
 
@@ -113,7 +123,7 @@ class RunResult:
             "ended_at": self.ended_at.isoformat() if self.ended_at is not None else None,
             "summary": self.summary.to_dict(),
             "cases": [case.to_dict() for case in self.cases],
-            "errors": list(self.errors),
+            "errors": [redact_text(error) for error in self.errors],
         }
 
 
@@ -122,11 +132,11 @@ def _request_to_dict(request: HttpRequest | None) -> dict[str, Any] | None:
         return None
     return {
         "method": request.method,
-        "url": request.url,
-        "headers": dict(request.headers),
-        "query": dict(request.query),
-        "cookies": dict(request.cookies),
-        "body": _body_to_json_value(request.body),
+        "url": redact_url(request.url),
+        "headers": redact_mapping(request.headers),
+        "query": redact_mapping(request.query),
+        "cookies": redact_cookies(request.cookies),
+        "body": _body_to_json_value(redact_body(request.body)) if request.body is not None else None,
         "timeout": request.timeout,
     }
 
@@ -136,36 +146,42 @@ def _response_to_dict(response: HttpResponse | None) -> dict[str, Any] | None:
         return None
     return {
         "status_code": response.status_code,
-        "headers": dict(response.headers),
-        "cookies": dict(response.cookies),
-        "body": response.text,
+        "headers": redact_mapping(response.headers),
+        "cookies": redact_cookies(response.cookies),
+        "body": _body_to_json_value(redact_body(response.body)),
         "elapsed_ms": response.elapsed_ms,
     }
 
 
 def _assertion_to_dict(assertion: AssertionResult) -> dict[str, Any]:
+    sensitive_result = _has_sensitive_part(assertion.path, assertion.target)
     return {
         "type": assertion.type,
         "passed": assertion.passed,
-        "expected": assertion.expected,
-        "actual": assertion.actual,
+        "expected": REDACTED if sensitive_result else redact_value(assertion.expected),
+        "actual": REDACTED if sensitive_result else redact_value(assertion.actual),
         "path": assertion.path,
         "target": assertion.target,
         "mode": assertion.mode,
-        "message": assertion.message,
+        "message": redact_text(assertion.message),
     }
 
 
 def _extract_to_dict(extract: ExtractResult) -> dict[str, Any]:
+    sensitive_result = _has_sensitive_part(extract.name, extract.path)
     return {
         "name": extract.name,
         "type": extract.type,
         "path": extract.path,
-        "value": extract.value,
+        "value": REDACTED if sensitive_result else redact_value(extract.value),
         "extracted": extract.extracted,
         "optional": extract.optional,
-        "message": extract.message,
+        "message": redact_text(extract.message),
     }
+
+
+def _has_sensitive_part(*parts: str | None) -> bool:
+    return any(part is not None and is_sensitive_key(part) for part in parts)
 
 
 def _body_to_json_value(body: str | bytes | None) -> str | None:

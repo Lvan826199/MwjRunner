@@ -75,3 +75,36 @@ def test_console_reporter_renders_failure_details() -> None:
     assert "健康检查用例 / 健康检查" in output
     assert "status_code 断言失败" in output
     assert "响应状态码异常" in output
+
+
+def test_console_reporter_redacts_sensitive_failure_details() -> None:
+    assertion = AssertionResult(
+        type="body_equals",
+        passed=False,
+        expected="raw-token",
+        actual="raw-token",
+        message="authorization=Bearer raw-auth",
+    )
+    step = StepResult(
+        name="登录",
+        status="failed",
+        assertions=[assertion],
+        errors=["password=raw-password"],
+    )
+    case = CaseResult(name="登录用例", status="failed", steps=[step], errors=["token=raw-case-token"])
+    result = RunResult(
+        run_id="run-console-redaction-001",
+        started_at=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 5, 9, 10, 0, 1, tzinfo=UTC),
+        summary=Summary(total_cases=1, failed_cases=1, total_errors=2),
+        cases=[case],
+        errors=["authorization=Bearer raw-run-auth"],
+    )
+
+    output = ConsoleReporter().render(result)
+
+    assert "raw-auth" not in output
+    assert "raw-password" not in output
+    assert "raw-case-token" not in output
+    assert "raw-run-auth" not in output
+    assert "***REDACTED***" in output

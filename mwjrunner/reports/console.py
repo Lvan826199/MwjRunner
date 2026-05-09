@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from mwjrunner.reports.model import RunResult
+from mwjrunner.utils.masking import redact_text
 
 
 class ConsoleReporter:
@@ -31,7 +32,7 @@ class ConsoleReporter:
             lines.append("")
             lines.append("失败或错误明细")
             lines.extend(details)
-        return "\n".join(lines)
+        return redact_text("\n".join(lines))
 
     def write(self, result: RunResult) -> None:
         """输出终端报告文本。"""

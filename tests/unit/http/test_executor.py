@@ -136,6 +136,29 @@ steps:
 
         assert body == "raw body content"
 
+    def test_build_body_from_body_field_redacts_text(self, tmp_path: Path) -> None:
+        """测试从 body 字段构建请求体时脱敏文本。"""
+        case_file = tmp_path / "test.yaml"
+        case_file.write_text(
+            """
+name: 测试用例
+steps:
+  - name: 请求
+    request:
+      method: POST
+      url: /test
+      body: "token=raw-token&username=admin"
+""",
+            encoding="utf-8",
+        )
+
+        case = load_yaml_case(case_file)
+        executor = HttpExecutor()
+
+        body = executor._build_body(case.steps[0].request)
+
+        assert body == "token=***REDACTED***&username=admin"
+
     def test_default_timeout(self) -> None:
         """测试默认超时时间。"""
         executor = HttpExecutor()
@@ -216,3 +239,16 @@ steps:
         assert "raw-secret" not in body
         assert "admin" in body
         assert "***REDACTED***" in body
+
+    def test_response_body_redacts_text_sensitive_fields(self) -> None:
+        """测试响应体文本敏感字段脱敏。"""
+        executor = HttpExecutor()
+        response = httpx.Response(
+            status_code=200,
+            headers={"content-type": "text/plain"},
+            content=b"token=raw-token&username=admin",
+        )
+
+        body = executor._redact_response_body(response).decode("utf-8")
+
+        assert body == "token=***REDACTED***&username=admin"
