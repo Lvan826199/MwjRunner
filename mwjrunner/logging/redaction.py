@@ -18,8 +18,7 @@ SENSITIVE_KEYS = (
 )
 
 _TEXT_PATTERNS = tuple(
-    re.compile(rf"(?i)({key.replace('_', '[-_]?')}\s*[:=]\s*)(Bearer\s+[^\s,;]+|[^\s,;]+)")
-    for key in SENSITIVE_KEYS
+    re.compile(rf"(?i)({key.replace('_', '[-_]?')}\s*[:=]\s*)(Bearer\s+[^\s,;]+|[^\s,;]+)") for key in SENSITIVE_KEYS
 )
 
 

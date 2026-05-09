@@ -30,5 +30,5 @@ def normalize_log_level(level: str) -> int:
     normalized_level = level.upper()
     if normalized_level not in _SUPPORTED_LEVELS:
         supported = ", ".join(_SUPPORTED_LEVELS)
-        raise ValueError(f"不支持的日志级别: {level}，支持的级别: {supported}")
+        raise ValueError(f"不支持的日志级别: {level}, 支持的级别: {supported}")
     return _SUPPORTED_LEVELS[normalized_level]

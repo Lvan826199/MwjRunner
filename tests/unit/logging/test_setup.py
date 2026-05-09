@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import subprocess
+import sys
 
 import pytest
 
@@ -119,3 +121,22 @@ def test_configure_logging_redacts_sensitive_file_output(tmp_path) -> None:
     assert "authorization=***REDACTED***" in content
     assert "cookie: ***REDACTED***" in content
     assert "trace=public" in content
+
+
+def test_logging_setup_does_not_import_reports() -> None:
+    script = """
+import sys
+import mwjrunner.logging.config
+import mwjrunner.logging.context
+import mwjrunner.logging.redaction
+import mwjrunner.logging.setup
+
+imported_report_modules = [
+    name for name in sys.modules if name == "mwjrunner.reports" or name.startswith("mwjrunner.reports.")
+]
+raise SystemExit(1 if imported_report_modules else 0)
+"""
+
+    result = subprocess.run([sys.executable, "-c", script], check=False)
+
+    assert result.returncode == 0
