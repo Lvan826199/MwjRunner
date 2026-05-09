@@ -92,3 +92,30 @@ def test_configure_logging_replaces_existing_handlers(capsys: pytest.CaptureFixt
     assert captured.err.count("single message") == 1
     assert "run_id=run-second" in captured.err
     assert "run_id=run-first" not in captured.err
+
+
+def test_configure_logging_redacts_sensitive_console_output(capsys: pytest.CaptureFixture[str]) -> None:
+    logger = configure_logging(LogConfig(run_id="run-redact-console"))
+
+    logger.info("login token=raw-token password: raw-password user=admin")
+
+    captured = capsys.readouterr()
+    assert "raw-token" not in captured.err
+    assert "raw-password" not in captured.err
+    assert "token=***REDACTED***" in captured.err
+    assert "password: ***REDACTED***" in captured.err
+    assert "user=admin" in captured.err
+
+
+def test_configure_logging_redacts_sensitive_file_output(tmp_path) -> None:
+    log_file = tmp_path / "mwjrunner.log"
+    logger = configure_logging(LogConfig(run_id="run-redact-file", log_file=log_file, console=False))
+
+    logger.warning("authorization=Bearer raw-auth cookie: raw-cookie trace=public")
+
+    content = log_file.read_text(encoding="utf-8")
+    assert "raw-auth" not in content
+    assert "raw-cookie" not in content
+    assert "authorization=***REDACTED***" in content
+    assert "cookie: ***REDACTED***" in content
+    assert "trace=public" in content

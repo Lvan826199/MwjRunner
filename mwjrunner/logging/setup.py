@@ -7,9 +7,19 @@ import sys
 
 from mwjrunner.logging.config import LogConfig, normalize_log_level
 from mwjrunner.logging.context import RunIdFilter
+from mwjrunner.logging.redaction import redact_text
 
 _LOG_FORMAT = "%(asctime)s %(levelname)s [run_id=%(run_id)s] %(name)s - %(message)s"
 _LOGGER_NAME = "mwjrunner"
+
+
+class RedactingFormatter(logging.Formatter):
+    """输出日志前脱敏消息内容。"""
+
+    def format(self, record: logging.LogRecord) -> str:
+        """格式化并脱敏日志文本。"""
+        formatted = super().format(record)
+        return redact_text(formatted)
 
 
 def configure_logging(config: LogConfig) -> logging.Logger:
@@ -23,7 +33,7 @@ def configure_logging(config: LogConfig) -> logging.Logger:
     logger.setLevel(level)
 
     run_id_filter = RunIdFilter(config.run_id)
-    formatter = logging.Formatter(_LOG_FORMAT)
+    formatter = RedactingFormatter(_LOG_FORMAT)
 
     if config.console:
         console_handler = logging.StreamHandler(sys.stderr)
