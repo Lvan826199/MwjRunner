@@ -6,7 +6,7 @@ import logging
 
 import pytest
 
-from mwjrunner.logging import LogConfig
+from mwjrunner.logging import LogConfig, configure_logging
 from mwjrunner.logging.config import normalize_log_level
 from mwjrunner.logging.context import RunIdFilter
 
@@ -48,3 +48,47 @@ def test_run_id_filter_injects_run_id() -> None:
 
     assert result is True
     assert record.run_id == "run-filter-001"
+
+
+def test_configure_logging_writes_run_id_to_console(capsys: pytest.CaptureFixture[str]) -> None:
+    logger = configure_logging(LogConfig(run_id="run-console-001"))
+
+    logger.info("hello")
+
+    captured = capsys.readouterr()
+    assert "run_id=run-console-001" in captured.err
+    assert "hello" in captured.err
+
+
+def test_configure_logging_writes_file_with_run_id(tmp_path) -> None:
+    log_file = tmp_path / "logs" / "mwjrunner.log"
+    logger = configure_logging(LogConfig(run_id="run-file-001", log_file=log_file, console=False))
+
+    logger.info("file log")
+
+    content = log_file.read_text(encoding="utf-8")
+    assert "run_id=run-file-001" in content
+    assert "file log" in content
+
+
+def test_configure_logging_honors_log_level(capsys: pytest.CaptureFixture[str]) -> None:
+    logger = configure_logging(LogConfig(level="ERROR", run_id="run-level-001"))
+
+    logger.info("hidden info")
+    logger.error("visible error")
+
+    captured = capsys.readouterr()
+    assert "hidden info" not in captured.err
+    assert "visible error" in captured.err
+
+
+def test_configure_logging_replaces_existing_handlers(capsys: pytest.CaptureFixture[str]) -> None:
+    logger = configure_logging(LogConfig(run_id="run-first"))
+    logger = configure_logging(LogConfig(run_id="run-second"))
+
+    logger.warning("single message")
+
+    captured = capsys.readouterr()
+    assert captured.err.count("single message") == 1
+    assert "run_id=run-second" in captured.err
+    assert "run_id=run-first" not in captured.err
