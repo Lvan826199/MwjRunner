@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MwjRunner 测试报告</title>
+<style>
+:root {
+  --primary: #1E40AF;
+  --primary-light: #3B82F6;
+  --primary-bg: #EFF6FF;
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --text: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --border: #E2E8F0;
+  --border-light: #F1F5F9;
+  --passed: #059669;
+  --passed-bg: #ECFDF5;
+  --passed-border: #A7F3D0;
+  --failed: #EA580C;
+  --failed-bg: #FFF7ED;
+  --failed-border: #FED7AA;
+  --error: #DC2626;
+  --error-bg: #FEF2F2;
+  --error-border: #FECACA;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  line-height:1.6;color:var(--text);background:var(--bg);min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:24px 20px}
+
+/* Header */
+.header{margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.header-top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),var(--primary-light));
+  border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo svg{width:20px;height:20px;fill:#fff}
+.header h1{font-size:1.5rem;font-weight:700;color:var(--text)}
+.header-meta{display:flex;flex-wrap:wrap;gap:16px;font-size:0.82rem;color:var(--text-muted)}
+.header-meta span{display:inline-flex;align-items:center;gap:4px}
+.header-meta svg{width:14px;height:14px;stroke:var(--text-muted);fill:none;stroke-width:2}
+
+/* Summary Grid */
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px}
+.card{background:var(--surface);border-radius:var(--radius);padding:16px;
+  box-shadow:var(--shadow-sm);border:1px solid var(--border);transition:box-shadow 0.2s}
+.card:hover{box-shadow:var(--shadow)}
+.card-label{font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.025em;
+  color:var(--text-muted);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.card-label .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.card-value{font-size:1.6rem;font-weight:700;color:var(--text)}
+.card-value.passed{color:var(--passed)}
+.card-value.failed{color:var(--failed)}
+.card-value.error{color:var(--error)}
+
+/* Section Title */
+.section-header{font-size:0.85rem;font-weight:600;color:var(--text-secondary);
+  text-transform:uppercase;letter-spacing:0.05em;margin:24px 0 12px;
+  display:flex;align-items:center;gap:8px}
+.section-header::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Run Errors */
+.run-errors{background:var(--error-bg);border:1px solid var(--error-border);
+  border-radius:var(--radius);padding:14px 16px;margin-bottom:20px}
+.run-errors strong{color:var(--error);font-size:0.85rem}
+.run-errors ul{margin:6px 0 0 18px;font-size:0.85rem;color:#991B1B}
+.run-errors li{margin-bottom:2px}
+
+/* Cases */
+.case{background:var(--surface);border-radius:var(--radius-lg);margin-bottom:14px;
+  box-shadow:var(--shadow-sm);border:1px solid var(--border);overflow:hidden}
+.case>summary{padding:14px 18px;cursor:pointer;font-weight:600;font-size:0.95rem;
+  display:flex;align-items:center;gap:10px;list-style:none;transition:background 0.15s}
+.case>summary:hover{background:var(--border-light)}
+.case>summary::-webkit-details-marker{display:none}
+.case>summary::before{content:'';width:18px;height:18px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpath d='M9 18l6-6-6-6'/%3E%3C/svg%3E") no-repeat center;
+  transition:transform 0.2s;flex-shrink:0}
+.case[open]>summary::before{transform:rotate(90deg)}
+.case-body{padding:4px 18px 18px}
+.case-source{font-size:0.8rem;color:var(--text-muted);font-weight:400;margin-left:auto}
+
+/* Badge */
+.badge{font-size:0.7rem;padding:2px 8px;border-radius:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.03em}
+.badge-passed{background:var(--passed-bg);color:var(--passed);border:1px solid var(--passed-border)}
+.badge-failed{background:var(--failed-bg);color:var(--failed);border:1px solid var(--failed-border)}
+.badge-error{background:var(--error-bg);color:var(--error);border:1px solid var(--error-border)}
+
+/* Steps */
+.step{border:1px solid var(--border);border-radius:var(--radius);margin-top:10px;overflow:hidden}
+.step>summary{padding:10px 14px;cursor:pointer;font-weight:500;font-size:0.88rem;
+  display:flex;align-items:center;gap:8px;background:var(--border-light);
+  list-style:none;transition:background 0.15s}
+.step>summary:hover{background:var(--border)}
+.step>summary::-webkit-details-marker{display:none}
+.step>summary::before{content:'';width:16px;height:16px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpath d='M9 18l6-6-6-6'/%3E%3C/svg%3E") no-repeat center;
+  transition:transform 0.2s;flex-shrink:0}
+.step[open]>summary::before{transform:rotate(90deg)}
+.step-elapsed{font-size:0.78rem;color:var(--text-muted);margin-left:auto}
+.step-body{padding:12px 14px}
+
+/* Section labels inside steps */
+.label{font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;
+  letter-spacing:0.04em;margin:14px 0 6px;display:flex;align-items:center;gap:6px}
+.label:first-child{margin-top:0}
+.label svg{width:14px;height:14px;stroke:var(--text-muted);fill:none;stroke-width:2}
+
+/* Pre blocks */
+pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;
+  overflow-x:auto;font-size:0.8rem;font-family:"Fira Code",Consolas,monospace;
+  white-space:pre-wrap;word-break:break-all;line-height:1.5;color:var(--text)}
+
+/* Tables */
+.table-wrap{overflow-x:auto;border-radius:6px;border:1px solid var(--border);margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:0.82rem}
+th{background:var(--border-light);font-weight:600;color:var(--text-secondary);
+  text-align:left;padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 12px;border-bottom:1px solid var(--border-light);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+.icon-pass{color:var(--passed);font-weight:700}
+.icon-fail{color:var(--failed);font-weight:700}
+
+/* Case Errors */
+.case-errors{background:var(--error-bg);border:1px solid var(--error-border);
+  border-radius:6px;padding:10px 14px;margin-top:12px;font-size:0.83rem;color:#991B1B}
+.case-errors ul{margin:4px 0 0 16px}
+
+/* Footer */
+footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);
+  text-align:center;color:var(--text-muted);font-size:0.78rem}
+
+/* Placeholder state */
+.placeholder-banner{background:linear-gradient(135deg,var(--primary-bg),#F0F9FF);
+  border:1px dashed var(--primary-light);border-radius:var(--radius-lg);
+  padding:32px;text-align:center;margin-bottom:24px}
+.placeholder-banner h2{color:var(--primary);font-size:1.1rem;margin-bottom:6px}
+.placeholder-banner p{color:var(--text-muted);font-size:0.88rem}
+
+/* Print */
+@media print{
+  details{display:block !important}
+  details>summary{display:none !important}
+  details>.case-body,details>.step-body{display:block !important;padding:8px 0}
+  body{background:#fff;padding:0}
+  .card{box-shadow:none;border:1px solid #ddd}
+  .placeholder-banner{display:none}
+}
+/* Responsive */
+@media(max-width:640px){
+  .container{padding:16px 12px}
+  .summary{grid-template-columns:repeat(2,1fr);gap:8px}
+  .card{padding:12px}
+  .card-value{font-size:1.3rem}
+  .header-meta{flex-direction:column;gap:6px}
+}
+</style>
+</head>
+<body>
+<div class="container" id="app"></div>
+<footer>Generated by MwjRunner</footer>
+
+<script>
+const REPORT_DATA = "__REPORT_DATA_PLACEHOLDER__";
+
+(function() {
+  var MOCK_DATA = {
+    run_id: "demo-20260101-000000-abcdef",
+    started_at: "2026-01-01T10:00:00+08:00",
+    ended_at: "2026-01-01T10:00:02+08:00",
+    summary: {total_cases:3,passed_cases:2,failed_cases:1,error_cases:0,
+      total_steps:6,passed_steps:5,failed_steps:1,error_steps:0,
+      total_assertions:12,failed_assertions:1,total_errors:0,elapsed_ms:2150.5},
+    cases: [
+      {name:"用户登录流程",source_file:"cases/login.yaml",status:"passed",steps:[
+        {name:"登录请求",status:"passed",elapsed_ms:320.5,
+          request:{method:"POST",url:"http://api.example.com/login",headers:{"Content-Type":"application/json"},timeout:30},
+          response:{status_code:200,headers:{"content-type":"application/json"},body:"{\"code\":0,\"token\":\"***REDACTED***\"}",elapsed_ms:318.2},
+          assertions:[{type:"status_code",passed:true,expected:200,actual:200,path:null,message:"断言通过"}],
+          extracts:[{name:"token",path:"$.token",value:"***REDACTED***",extracted:true,message:"提取成功"}],errors:[]}
+      ],errors:[]},
+      {name:"获取用户列表",source_file:"cases/users.yaml",status:"failed",steps:[
+        {name:"请求列表",status:"failed",elapsed_ms:450.2,
+          request:{method:"GET",url:"http://api.example.com/users",headers:{},timeout:30},
+          response:{status_code:200,headers:{},body:"{\"users\":[]}",elapsed_ms:448.1},
+          assertions:[{type:"json_path",passed:false,expected:10,actual:0,path:"$.users.length",message:"列表为空"}],
+          extracts:[],errors:[]}
+      ],errors:[]}
+    ],
+    errors: []
+  };
+
+  var data = (typeof REPORT_DATA === 'object' && REPORT_DATA !== null) ? REPORT_DATA : null;
+  var isDemo = !data;
+  if (isDemo) data = MOCK_DATA;
+
+  var app = document.getElementById('app');
+  document.title = 'MwjRunner 测试报告 - ' + esc(data.run_id);
+
+  var html = '';
+  if (isDemo) {
+    html += '<div class="placeholder-banner">'
+      + '<h2>MwjRunner 报告模板预览</h2>'
+      + '<p>当前显示的是演示数据。实际运行后，测试结果将自动填充到此模板中。</p></div>';
+  }
+  html += renderHeader(data) + renderSummary(data.summary || {})
+    + renderRunErrors(data.errors || []) + renderCases(data.cases || []);
+  app.innerHTML = html;
+
+  /* Utilities */
+  function esc(val) {
+    if (val == null) return '';
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(val)));
+    return d.innerHTML;
+  }
+  function formatJson(val) {
+    if (typeof val !== 'string') return String(val == null ? '' : val);
+    try { return JSON.stringify(JSON.parse(val), null, 2); } catch(e) { return val; }
+  }
+
+  /* Header */
+  function renderHeader(d) {
+    var s = d.summary || {};
+    return '<div class="header"><div class="header-top">'
+      + '<div class="logo"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>'
+      + '<h1>MwjRunner 测试报告</h1></div>'
+      + '<div class="header-meta">'
+      + '<span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>' + esc(d.started_at) + '</span>'
+      + '<span><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>' + esc(d.ended_at) + '</span>'
+      + '<span><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>' + (s.elapsed_ms || 0).toFixed(1) + ' ms</span>'
+      + '<span><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>' + esc(d.run_id) + '</span>'
+      + '</div></div>';
+  }
+
+  /* Summary Cards */
+  function renderSummary(s) {
+    function card(label, value, cls, color) {
+      var dotStyle = color ? ' style="background:' + color + '"' : '';
+      var valCls = cls ? ' class="card-value ' + cls + '"' : ' class="card-value"';
+      return '<div class="card"><div class="card-label"><span class="dot"' + dotStyle + '></span>' + esc(label) + '</div>'
+        + '<div' + valCls + '>' + esc(value) + '</div></div>';
+    }
+    return '<div class="summary">'
+      + card('总用例', s.total_cases||0, '', '#64748B')
+      + card('通过用例', s.passed_cases||0, 'passed', '#059669')
+      + card('失败用例', s.failed_cases||0, s.failed_cases?'failed':'', '#EA580C')
+      + card('错误用例', s.error_cases||0, s.error_cases?'error':'', '#DC2626')
+      + card('总步骤', s.total_steps||0, '', '#64748B')
+      + card('通过步骤', s.passed_steps||0, 'passed', '#059669')
+      + card('失败步骤', s.failed_steps||0, s.failed_steps?'failed':'', '#EA580C')
+      + card('错误步骤', s.error_steps||0, s.error_steps?'error':'', '#DC2626')
+      + card('总断言', s.total_assertions||0, '', '#64748B')
+      + card('失败断言', s.failed_assertions||0, s.failed_assertions?'failed':'', '#EA580C')
+      + card('总错误', s.total_errors||0, s.total_errors?'error':'', '#DC2626')
+      + '</div>';
+  }
+
+  /* Run-level errors */
+  function renderRunErrors(errors) {
+    if (!errors.length) return '';
+    var items = errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('');
+    return '<div class="run-errors"><strong>运行级错误</strong><ul>'+items+'</ul></div>';
+  }
+
+  /* Cases */
+  function renderCases(cases) {
+    if (!cases.length) return '<p style="color:var(--text-muted);text-align:center;padding:40px 0">无用例结果</p>';
+    var h = '<div class="section-header">用例详情</div>';
+    return h + cases.map(renderCase).join('');
+  }
+  function renderCase(c) {
+    var status = c.status||'passed';
+    var openAttr = status!=='passed'?' open':'';
+    var steps = (c.steps||[]).map(renderStep).join('');
+    var errors = renderCaseErrors(c.errors||[]);
+    return '<details class="case"'+openAttr+'><summary>'
+      + '<span class="badge badge-'+status+'">'+esc(status)+'</span> '
+      + esc(c.name)+'<span class="case-source">'+esc(c.source_file)+'</span>'
+      + '</summary><div class="case-body">'+steps+errors+'</div></details>';
+  }
+  function renderCaseErrors(errors) {
+    if (!errors.length) return '';
+    var items = errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('');
+    return '<div class="case-errors"><strong>用例错误：</strong><ul>'+items+'</ul></div>';
+  }
+
+  /* Steps */
+  function renderStep(step) {
+    var status = step.status||'passed';
+    var elapsed = (step.elapsed_ms||0).toFixed(1);
+    var openAttr = status!=='passed'?' open':'';
+    var body = renderRequest(step.request)+renderResponse(step.response)
+      +renderAssertions(step.assertions||[])+renderExtracts(step.extracts||[])
+      +renderStepErrors(step.errors||[]);
+    return '<details class="step"'+openAttr+'><summary>'
+      +'<span class="badge badge-'+status+'">'+esc(status)+'</span> '
+      +esc(step.name)+'<span class="step-elapsed">'+elapsed+' ms</span>'
+      +'</summary><div class="step-body">'+body+'</div></details>';
+  }
+
+  /* Request */
+  function renderRequest(req) {
+    if (!req) return '';
+    var lines = [esc(req.method)+' '+esc(req.url)];
+    var h = req.headers||{};
+    for (var k in h) { if (h.hasOwnProperty(k)) lines.push(esc(k)+': '+esc(h[k])); }
+    if (req.timeout) lines.push('Timeout: '+req.timeout+'s');
+    var out = '<div class="label"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>Request</div>';
+    out += '<pre>'+lines.join('\n')+'</pre>';
+    if (req.body) out += '<pre>'+esc(formatJson(req.body))+'</pre>';
+    return out;
+  }
+
+  /* Response */
+  function renderResponse(resp) {
+    if (!resp) return '';
+    var elapsed = (resp.elapsed_ms||0).toFixed(1);
+    var out = '<div class="label"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Response ('+esc(resp.status_code)+', '+elapsed+' ms)</div>';
+    var h = resp.headers||{};
+    var keys = Object.keys(h);
+    if (keys.length) {
+      out += '<pre>'+keys.map(function(k){return esc(k)+': '+esc(h[k]);}).join('\n')+'</pre>';
+    }
+    if (resp.body) out += '<pre>'+esc(formatJson(resp.body))+'</pre>';
+    return out;
+  }
+
+  /* Assertions */
+  function renderAssertions(assertions) {
+    if (!assertions.length) return '';
+    var rows = assertions.map(function(a){
+      var icon = a.passed?'<span class="icon-pass">\u2714</span>':'<span class="icon-fail">\u2718</span>';
+      return '<tr><td>'+icon+'</td><td>'+esc(a.type)+'</td><td>'+esc(a.path)+'</td>'
+        +'<td>'+esc(a.expected)+'</td><td>'+esc(a.actual)+'</td><td>'+esc(a.message)+'</td></tr>';
+    }).join('');
+    return '<div class="label"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>Assertions</div>'
+      +'<div class="table-wrap"><table><tr><th></th><th>类型</th><th>路径</th><th>期望</th><th>实际</th><th>消息</th></tr>'
+      +rows+'</table></div>';
+  }
+
+  /* Extracts */
+  function renderExtracts(extracts) {
+    if (!extracts.length) return '';
+    var rows = extracts.map(function(e){
+      var icon = e.extracted?'<span class="icon-pass">\u2714</span>':'<span class="icon-fail">\u2718</span>';
+      return '<tr><td>'+icon+'</td><td>'+esc(e.name)+'</td><td>'+esc(e.path)+'</td>'
+        +'<td>'+esc(e.value)+'</td><td>'+esc(e.message)+'</td></tr>';
+    }).join('');
+    return '<div class="label"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/></svg>Extracts</div>'
+      +'<div class="table-wrap"><table><tr><th></th><th>变量名</th><th>路径</th><th>值</th><th>消息</th></tr>'
+      +rows+'</table></div>';
+  }
+
+  /* Step Errors */
+  function renderStepErrors(errors) {
+    if (!errors.length) return '';
+    var items = errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('');
+    return '<div class="case-errors"><ul>'+items+'</ul></div>';
+  }
+})();
+</script>
+</body>
+</html>

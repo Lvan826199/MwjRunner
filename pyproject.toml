@@ -11,6 +11,12 @@ dependencies = [
 [project.scripts]
 mwjrunner = "mwjrunner.cli:main"
 
+[tool.setuptools.packages.find]
+include = ["mwjrunner*"]
+
+[tool.setuptools.package-data]
+mwjrunner = ["reports/template.html"]
+
 [tool.uv]
 package = true
 

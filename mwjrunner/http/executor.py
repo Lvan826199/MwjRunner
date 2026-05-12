@@ -55,7 +55,10 @@ class HttpExecutor:
 
         try:
             start_time = time.perf_counter()
-            with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+            transport = httpx.HTTPTransport()
+            with httpx.Client(
+                timeout=timeout, follow_redirects=True, transport=transport
+            ) as client:
                 response = client.request(
                     method=request_spec.method,
                     url=url,

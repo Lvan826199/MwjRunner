@@ -5,3 +5,4 @@ __pycache__/
 .idea/
 .claude/settings.json
 .claude/worktrees/
+/reports/

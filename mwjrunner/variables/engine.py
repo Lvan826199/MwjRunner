@@ -67,7 +67,11 @@ class VariableEngine:
         try:
             value = resolve_json_path(result.response.json(), spec.path)
         except json.JSONDecodeError as exc:
-            message = "响应 JSON 解析失败,无法提取变量"
+            body_preview = result.response.text[:80] or "(空)"
+            message = (
+                f"响应 JSON 解析失败,无法提取变量"
+                f" (status_code={result.response.status_code}, body={body_preview})"
+            )
             if spec.optional:
                 return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
             raise VariableError(message) from exc
