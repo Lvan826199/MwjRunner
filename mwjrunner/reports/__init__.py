@@ -7,6 +7,7 @@ from mwjrunner.reports.exit_code import (
     SUCCESS_EXIT_CODE,
     resolve_exit_code,
 )
+from mwjrunner.reports.html import HtmlReporter
 from mwjrunner.reports.json import JsonReporter
 from mwjrunner.reports.model import CaseResult, RunResult, StepResult, Summary
 
@@ -16,6 +17,7 @@ __all__ = [
     "SUCCESS_EXIT_CODE",
     "CaseResult",
     "ConsoleReporter",
+    "HtmlReporter",
     "JsonReporter",
     "RunResult",
     "StepResult",

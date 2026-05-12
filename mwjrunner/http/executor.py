@@ -74,6 +74,7 @@ class HttpExecutor:
                 cookies=redact_cookies(dict(response.cookies)),
                 body=self._redact_response_body(response),
                 elapsed_ms=elapsed_ms,
+                raw_body=response.content,
             )
 
             return HttpResult(request=request_snapshot, response=response_snapshot)

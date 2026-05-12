@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 
-RUN_NOT_IMPLEMENTED_EXIT_CODE = 3
+from mwjrunner.core.runner import run_from_args
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,7 +23,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser = subparsers.add_parser(
         "run",
         help="运行接口自动化测试用例",
-        description="运行接口自动化测试用例。当前仅提供参数解析，执行能力将在后续任务实现。",
+        description="运行接口自动化测试用例。当前支持单个 YAML 用例文件的最小执行闭环。",
     )
     run_parser.add_argument(
         "path",
@@ -36,11 +36,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_parser.add_argument(
         "--tags",
-        help="仅运行指定标签用例，多个标签可用逗号分隔。",
+        help="仅运行指定标签用例,多个标签可用逗号分隔。",
     )
     run_parser.add_argument(
         "--exclude-tags",
-        help="排除指定标签用例，多个标签可用逗号分隔。",
+        help="排除指定标签用例,多个标签可用逗号分隔。",
     )
     run_parser.add_argument(
         "--priority",
@@ -63,7 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_parser.add_argument(
         "--report",
-        help="报告输出类型，多个类型可用逗号分隔。",
+        help="报告输出类型,多个类型可用逗号分隔。",
     )
     run_parser.add_argument(
         "--report-dir",
@@ -74,7 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         metavar="KEY=VALUE",
-        help="设置运行变量，可重复传入。",
+        help="设置运行变量,可重复传入。",
     )
     run_parser.add_argument(
         "--base-url",
@@ -85,10 +85,9 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def handle_run(_args: argparse.Namespace) -> int:
+def handle_run(args: argparse.Namespace) -> int:
     """处理 run 子命令。"""
-    print("run 执行能力将在后续任务实现。")
-    return RUN_NOT_IMPLEMENTED_EXIT_CODE
+    return run_from_args(args)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

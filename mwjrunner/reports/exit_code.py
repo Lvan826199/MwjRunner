@@ -7,6 +7,7 @@ from mwjrunner.reports.model import RunResult
 SUCCESS_EXIT_CODE = 0
 ASSERTION_FAILED_EXIT_CODE = 1
 ERROR_EXIT_CODE = 2
+INTERNAL_ERROR_EXIT_CODE = 3
 
 
 def resolve_exit_code(result: RunResult) -> int:

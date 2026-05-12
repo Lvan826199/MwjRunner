@@ -21,7 +21,7 @@ def load_yaml_case(file_path: str | Path) -> TestCase:
             str(path),
             "file",
             f"无法读取用例文件: {exc}",
-            "请确认用例文件路径存在，并且当前用户有读取权限。",
+            "请确认用例文件路径存在,并且当前用户有读取权限。",
         ) from exc
 
     try:
@@ -44,7 +44,7 @@ def parse_case(raw_case: Any, source_file: str) -> TestCase:
             source_file, "$", "用例文件顶层必须是对象。", "请使用 name、tags、variables、steps 等字段定义用例。"
         )
 
-    name = _required_string(raw_case, "name", source_file, "请在用例顶层增加 name 字段，例如 name: 健康检查。")
+    name = _required_string(raw_case, "name", source_file, "请在用例顶层增加 name 字段,例如 name: 健康检查。")
     tags = _optional_string_list(raw_case, "tags", source_file)
     variables = _optional_mapping(raw_case, "variables", source_file)
     steps = _parse_steps(raw_case.get("steps"), source_file)
@@ -54,7 +54,7 @@ def parse_case(raw_case: Any, source_file: str) -> TestCase:
 
 def _parse_steps(raw_steps: Any, source_file: str) -> list[TestStep]:
     if raw_steps is None:
-        raise _error(source_file, "steps", "缺少必填字段 steps。", "请增加 steps 列表，并至少包含一个请求步骤。")
+        raise _error(source_file, "steps", "缺少必填字段 steps。", "请增加 steps 列表,并至少包含一个请求步骤。")
     if not isinstance(raw_steps, list) or not raw_steps:
         raise _error(
             source_file, "steps", "steps 必须是非空列表。", "请按 steps: 下方缩进编写 - name: ... 的步骤列表。"
@@ -78,20 +78,18 @@ def _parse_steps(raw_steps: Any, source_file: str) -> list[TestStep]:
 
 def _parse_request(raw_request: Any, source_file: str, field: str) -> RequestSpec:
     if raw_request is None:
-        raise _error(source_file, field, "缺少必填字段 request。", "请为步骤增加 request，并填写 method 和 url。")
+        raise _error(source_file, field, "缺少必填字段 request。", "请为步骤增加 request,并填写 method 和 url。")
     if not isinstance(raw_request, dict):
         raise _error(source_file, field, "request 必须是对象。", "请使用 request.method 和 request.url 定义请求。")
 
-    method = _required_string(
-        raw_request, "method", source_file, f"请在 {field} 增加 method，例如 method: GET。", field
-    )
-    url = _required_string(raw_request, "url", source_file, f"请在 {field} 增加 url，例如 url: /health。", field)
+    method = _required_string(raw_request, "method", source_file, f"请在 {field} 增加 method,例如 method: GET。", field)
+    url = _required_string(raw_request, "url", source_file, f"请在 {field} 增加 url,例如 url: /health。", field)
     headers = _optional_mapping(raw_request, "headers", source_file, field)
     query = _optional_mapping(raw_request, "query", source_file, field)
     cookies = _optional_mapping(raw_request, "cookies", source_file, field)
     timeout = raw_request.get("timeout")
     if timeout is not None and not isinstance(timeout, int | float):
-        raise _error(source_file, f"{field}.timeout", "timeout 必须是数字。", "请填写秒数，例如 timeout: 5。")
+        raise _error(source_file, f"{field}.timeout", "timeout 必须是数字。", "请填写秒数,例如 timeout: 5。")
 
     return RequestSpec(
         method=method.upper(),
@@ -127,7 +125,7 @@ def _parse_assertions(raw_assertions: Any, source_file: str, field: str) -> list
                 source_file,
                 f"{item_field}.expected",
                 "断言缺少 expected 字段。",
-                "请填写断言期望值，例如 expected: 200。",
+                "请填写断言期望值,例如 expected: 200。",
             )
         path = raw_assertion.get("path")
         if assertion_type == "json_path" and not isinstance(path, str):
@@ -135,7 +133,7 @@ def _parse_assertions(raw_assertions: Any, source_file: str, field: str) -> list
                 source_file,
                 f"{item_field}.path",
                 "json_path 断言必须填写 path。",
-                "请填写 JSONPath，例如 path: $.status。",
+                "请填写 JSONPath,例如 path: $.status。",
             )
         mode = raw_assertion.get("mode", "soft")
         if not isinstance(mode, str):
@@ -146,7 +144,7 @@ def _parse_assertions(raw_assertions: Any, source_file: str, field: str) -> list
                 source_file,
                 f"{item_field}.target",
                 "断言 target 必须是字符串。",
-                "请填写响应字段目标名称，或删除 target 字段。",
+                "请填写响应字段目标名称,或删除 target 字段。",
             )
         assertions.append(
             AssertionSpec(
@@ -172,7 +170,7 @@ def _parse_extract(raw_extract: Any, source_file: str, field: str) -> list[Extra
     for name, raw_value in raw_extract.items():
         item_field = f"{field}.{name}"
         if not isinstance(name, str) or not name:
-            raise _error(source_file, field, "extract 变量名必须是非空字符串。", "请使用有意义的变量名，例如 token。")
+            raise _error(source_file, field, "extract 变量名必须是非空字符串。", "请使用有意义的变量名,例如 token。")
         if isinstance(raw_value, str):
             extracts.append(ExtractSpec(name=name, type="json_path", path=raw_value))
             continue
@@ -192,7 +190,7 @@ def _parse_extract(raw_extract: Any, source_file: str, field: str) -> list[Extra
                     source_file,
                     f"{item_field}.path",
                     "extract path 必须是非空字符串。",
-                    "请填写提取路径，例如 path: $.data.token。",
+                    "请填写提取路径,例如 path: $.data.token。",
                 )
             if not isinstance(optional, bool):
                 raise _error(

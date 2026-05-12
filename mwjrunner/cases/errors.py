@@ -14,9 +14,4 @@ class CaseLoadError(Exception):
         super().__init__(self.__str__())
 
     def __str__(self) -> str:
-        return (
-            f"用例加载失败: {self.message}\n"
-            f"文件: {self.file_path}\n"
-            f"字段: {self.field}\n"
-            f"建议: {self.suggestion}"
-        )
+        return f"用例加载失败: {self.message}\n文件: {self.file_path}\n字段: {self.field}\n建议: {self.suggestion}"

@@ -6,6 +6,13 @@ from pathlib import Path
 
 import pytest
 
+try:
+    import httpx  # noqa: F401
+except ImportError:
+    HTTPX_INSTALLED = False
+else:
+    HTTPX_INSTALLED = True
+
 from mwjrunner.cases import load_yaml_case
 from mwjrunner.http import HttpExecutor
 
@@ -32,13 +39,8 @@ steps:
         case = load_yaml_case(case_file)
         executor = HttpExecutor()
 
-        # 如果 httpx 已安装，跳过此测试
-        try:
-            import httpx  # noqa: F401
-
-            pytest.skip("httpx 已安装，跳过依赖缺失测试")
-        except ImportError:
-            pass
+        if HTTPX_INSTALLED:
+            pytest.skip("httpx 已安装,跳过依赖缺失测试")
 
         result = executor.execute(case.steps[0].request)
 

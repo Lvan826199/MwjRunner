@@ -33,7 +33,7 @@ def assert_json_path(spec: AssertionSpec, result: HttpResult) -> AssertionResult
     error_message: str | None = None
 
     if result.response is None:
-        error_message = "响应为空，无法执行 json_path 断言"
+        error_message = "响应为空,无法执行 json_path 断言"
     elif spec.path is None:
         error_message = "json_path 断言缺少 path"
     else:

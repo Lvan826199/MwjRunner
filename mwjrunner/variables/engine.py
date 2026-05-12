@@ -48,7 +48,7 @@ class VariableEngine:
         return value
 
     def extract_all(self, specs: list[ExtractSpec], result: HttpResult) -> list[ExtractResult]:
-        """按声明顺序提取变量，并写入变量上下文。"""
+        """按声明顺序提取变量,并写入变量上下文。"""
         return [self.extract(spec, result) for spec in specs]
 
     def extract(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
@@ -59,7 +59,7 @@ class VariableEngine:
                 return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
             raise VariableError(message)
         if result.response is None:
-            message = "响应为空，无法提取变量"
+            message = "响应为空,无法提取变量"
             if spec.optional:
                 return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
             raise VariableError(message)
@@ -67,7 +67,7 @@ class VariableEngine:
         try:
             value = resolve_json_path(result.response.json(), spec.path)
         except json.JSONDecodeError as exc:
-            message = "响应 JSON 解析失败，无法提取变量"
+            message = "响应 JSON 解析失败,无法提取变量"
             if spec.optional:
                 return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
             raise VariableError(message) from exc

@@ -29,11 +29,13 @@ class HttpResponse:
     cookies: dict[str, str]
     body: bytes
     elapsed_ms: float
+    raw_body: bytes | None = None
 
     @property
     def text(self) -> str:
         """获取响应文本内容。"""
-        return self.body.decode("utf-8", errors="replace")
+        body = self.raw_body if self.raw_body is not None else self.body
+        return body.decode("utf-8", errors="replace")
 
     def json(self) -> Any:
         """解析响应为 JSON。"""
