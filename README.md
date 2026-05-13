@@ -196,4 +196,10 @@ uv run ruff format .
 - M3 调度能力 ✅
 - M4 可扩展能力 ✅
 - M5 生态集成 ✅
-- M6 平台化（规划中）
+- M6 平台化（进行中）— Vue 3 + Element Plus + FastAPI + SQLite
+
+## 平台（M6）
+
+`platform/` 目录为独立的 Web 管理平台，与引擎完全解耦。详见 `platform/README.md`。
+
+当前已完成：用例管理 CRUD（T40-T41）。开发中：执行触发（T42）。
