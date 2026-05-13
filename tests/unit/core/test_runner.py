@@ -142,11 +142,12 @@ def test_run_executor_load_error_returns_error_exit_code(tmp_path: Path) -> None
     assert exit_code == ERROR_EXIT_CODE
 
 
-def test_run_from_args_unsupported_option_returns_error_exit_code(tmp_path: Path) -> None:
+def test_run_from_args_tags_filter_returns_zero_when_no_match(tmp_path: Path) -> None:
     case_file = tmp_path / "health.yaml"
     case_file.write_text(
         """
 name: 健康检查
+tags: [regression]
 steps:
   - name: 服务健康状态
     request:
@@ -156,10 +157,10 @@ steps:
         encoding="utf-8",
     )
     args = Namespace(
-        path=case_file,
+        path=str(case_file),
         base_url="http://127.0.0.1:8000",
-        report="json",
-        report_dir=tmp_path,
+        report="console",
+        report_dir=str(tmp_path),
         var=[],
         env=None,
         tags="smoke",
@@ -172,7 +173,7 @@ steps:
 
     exit_code = run_from_args(args)
 
-    assert exit_code == ERROR_EXIT_CODE
+    assert exit_code == SUCCESS_EXIT_CODE
 
 
 def test_run_executor_extracts_token_and_redacts_report(tmp_path: Path) -> None:
@@ -279,3 +280,227 @@ steps:
     exit_code = RunExecutor(path=case_file, report="json", report_dir=tmp_path).run()
 
     assert exit_code == INTERNAL_ERROR_EXIT_CODE
+
+
+def test_run_executor_directory_batch_execution(tmp_path: Path) -> None:
+    """目录批量执行：多个用例文件全部执行。"""
+    cases_dir = tmp_path / "cases"
+    cases_dir.mkdir()
+    report_dir = tmp_path / "reports"
+
+    (cases_dir / "health.yaml").write_text(
+        """
+name: 健康检查
+steps:
+  - name: 服务健康状态
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+""",
+        encoding="utf-8",
+    )
+    (cases_dir / "login.yaml").write_text(
+        """
+name: 登录
+steps:
+  - name: 登录成功
+    request:
+      method: POST
+      url: /api/login
+      json:
+        username: demo
+        password: "123456"
+    assertions:
+      - type: status_code
+        expected: 200
+""",
+        encoding="utf-8",
+    )
+
+    result = RunExecutor(
+        path=cases_dir,
+        base_url="http://127.0.0.1:8000",
+        report="json",
+        report_dir=report_dir,
+    ).execute()
+
+    assert result.summary.total_cases == 2
+    assert result.summary.passed_cases == 2
+
+
+def test_run_executor_directory_empty_returns_error(tmp_path: Path) -> None:
+    """空目录返回错误退出码。"""
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+
+    exit_code = RunExecutor(
+        path=empty_dir,
+        report="console",
+        report_dir=tmp_path / "reports",
+    ).run()
+
+    assert exit_code == ERROR_EXIT_CODE
+
+
+def test_run_executor_directory_load_failure_isolated(tmp_path: Path) -> None:
+    """目录执行时单个文件加载失败不阻塞其他文件。"""
+    cases_dir = tmp_path / "cases"
+    cases_dir.mkdir()
+
+    (cases_dir / "good.yaml").write_text(
+        """
+name: 正常用例
+steps:
+  - name: 请求
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+""",
+        encoding="utf-8",
+    )
+    (cases_dir / "bad.yaml").write_text("not valid yaml: [", encoding="utf-8")
+
+    result = RunExecutor(
+        path=cases_dir,
+        base_url="http://127.0.0.1:8000",
+        report="console",
+        report_dir=tmp_path / "reports",
+    ).execute()
+
+    assert result.summary.total_cases == 2
+    assert result.summary.error_cases == 1
+    assert result.summary.passed_cases == 1
+
+
+def test_run_executor_retry_success_on_second_attempt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """retry: 第二次执行成功时最终状态为 passed。"""
+    case_file = tmp_path / "flaky.yaml"
+    case_file.write_text(
+        """
+name: 不稳定用例
+steps:
+  - name: 请求
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+""",
+        encoding="utf-8",
+    )
+
+    call_count = {"n": 0}
+    original_execute_case = RunExecutor._execute_case
+
+    def flaky_execute_case(self, case, logger):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            from mwjrunner.reports.model import CaseResult
+            return CaseResult(name=case.name, status="failed", source_file=case.source_file)
+        return original_execute_case(self, case, logger)
+
+    monkeypatch.setattr(RunExecutor, "_execute_case", flaky_execute_case)
+
+    result = RunExecutor(
+        path=case_file,
+        base_url="http://127.0.0.1:8000",
+        report="console",
+        report_dir=tmp_path / "reports",
+        retry=2,
+    ).execute()
+
+    assert result.summary.passed_cases == 1
+    assert call_count["n"] == 2
+
+
+def test_run_executor_retry_exhausted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """retry: 重试耗尽后最终状态为 failed。"""
+    case_file = tmp_path / "always_fail.yaml"
+    case_file.write_text(
+        """
+name: 始终失败
+steps:
+  - name: 请求
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+""",
+        encoding="utf-8",
+    )
+
+    call_count = {"n": 0}
+
+    def always_fail(self, case, logger):
+        call_count["n"] += 1
+        from mwjrunner.reports.model import CaseResult
+        return CaseResult(name=case.name, status="failed", source_file=case.source_file)
+
+    monkeypatch.setattr(RunExecutor, "_execute_case", always_fail)
+
+    result = RunExecutor(
+        path=case_file,
+        base_url="http://127.0.0.1:8000",
+        report="console",
+        report_dir=tmp_path / "reports",
+        retry=2,
+    ).execute()
+
+    assert result.summary.failed_cases == 1
+    assert call_count["n"] == 3  # 1 + 2 retries
+
+
+def test_run_executor_fail_fast_stops_execution(tmp_path: Path) -> None:
+    """fail-fast: 第一个失败后跳过后续用例。"""
+    cases_dir = tmp_path / "cases"
+    cases_dir.mkdir()
+
+    (cases_dir / "a_fail.yaml").write_text(
+        """
+name: 失败用例
+steps:
+  - name: 请求
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 999
+""",
+        encoding="utf-8",
+    )
+    (cases_dir / "b_pass.yaml").write_text(
+        """
+name: 通过用例
+steps:
+  - name: 请求
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+""",
+        encoding="utf-8",
+    )
+
+    result = RunExecutor(
+        path=cases_dir,
+        base_url="http://127.0.0.1:8000",
+        report="console",
+        report_dir=tmp_path / "reports",
+        fail_fast=True,
+    ).execute()
+
+    assert result.summary.failed_cases == 1
+    assert result.summary.skipped_cases == 1
+    assert result.cases[1].status == "skipped"

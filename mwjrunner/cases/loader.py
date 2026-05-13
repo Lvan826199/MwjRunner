@@ -47,9 +47,25 @@ def parse_case(raw_case: Any, source_file: str) -> TestCase:
     name = _required_string(raw_case, "name", source_file, "请在用例顶层增加 name 字段,例如 name: 健康检查。")
     tags = _optional_string_list(raw_case, "tags", source_file)
     variables = _optional_mapping(raw_case, "variables", source_file)
+    priority = _optional_string(raw_case, "priority", source_file)
+    data = _optional_data_list(raw_case, "data", source_file)
+    data_file = _optional_string(raw_case, "data_file", source_file)
+    retry = _optional_int(raw_case, "retry", source_file)
+    hooks = _optional_hooks(raw_case, "hooks", source_file)
     steps = _parse_steps(raw_case.get("steps"), source_file)
 
-    return TestCase(name=name, tags=tags, variables=variables, steps=steps, source_file=source_file)
+    return TestCase(
+        name=name,
+        tags=tags,
+        variables=variables,
+        steps=steps,
+        priority=priority,
+        source_file=source_file,
+        data=data,
+        data_file=data_file,
+        retry=retry,
+        hooks=hooks,
+    )
 
 
 def _parse_steps(raw_steps: Any, source_file: str) -> list[TestStep]:
@@ -232,6 +248,66 @@ def _optional_mapping(raw: dict[str, Any], key: str, source_file: str, parent: s
         return {}
     if not isinstance(value, dict):
         raise _error(source_file, field, f"{field} 必须是对象。", f"请使用 {key}: 下方缩进编写键值对。")
+    return value
+
+
+def _optional_string(raw: dict[str, Any], key: str, source_file: str, parent: str = "") -> str | None:
+    value = raw.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        field = f"{parent}.{key}" if parent else key
+        raise _error(source_file, field, f"{field} 必须是字符串。", f"请填写字符串值。")
+    return value
+
+
+def _optional_int(raw: dict[str, Any], key: str, source_file: str, parent: str = "") -> int | None:
+    value = raw.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, int):
+        field = f"{parent}.{key}" if parent else key
+        raise _error(source_file, field, f"{field} 必须是整数。", f"请填写整数值,例如 {key}: 2。")
+    return value
+
+
+def _optional_data_list(raw: dict[str, Any], key: str, source_file: str) -> list[dict[str, Any]] | None:
+    value = raw.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise _error(source_file, key, f"{key} 必须是列表。", "请使用 data: [{...}, {...}] 格式。")
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise _error(
+                source_file, f"{key}[{index}]", "data 每条记录必须是对象。", "请使用 {key: value} 格式。"
+            )
+    return value
+
+
+def _optional_hooks(raw: dict[str, Any], key: str, source_file: str) -> dict[str, str | list[str]]:
+    value = raw.get(key)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise _error(source_file, key, f"{key} 必须是对象。", "请使用 hooks: before_case: module.func 格式。")
+    valid_keys = {"before_case", "after_case", "before_step", "after_step"}
+    for hook_key, hook_value in value.items():
+        if hook_key not in valid_keys:
+            raise _error(
+                source_file, f"{key}.{hook_key}",
+                f"不支持的 hook 类型: {hook_key}。",
+                f"支持的类型: {', '.join(sorted(valid_keys))}。",
+            )
+        if isinstance(hook_value, str):
+            continue
+        if isinstance(hook_value, list) and all(isinstance(v, str) for v in hook_value):
+            continue
+        raise _error(
+            source_file, f"{key}.{hook_key}",
+            "hook 值必须是字符串或字符串列表。",
+            "请使用模块路径,例如 myproject.hooks.setup。",
+        )
     return value
 
 

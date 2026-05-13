@@ -23,7 +23,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser = subparsers.add_parser(
         "run",
         help="运行接口自动化测试用例",
-        description="运行接口自动化测试用例。当前支持单个 YAML 用例文件的最小执行闭环。",
+        description="运行接口自动化测试用例。支持单个 YAML 用例文件或目录批量执行。",
     )
     run_parser.add_argument(
         "path",

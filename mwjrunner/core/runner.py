@@ -1,19 +1,29 @@
-"""CLI run 最小执行编排。"""
+"""CLI run 执行编排。"""
 
 from __future__ import annotations
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
+from threading import Event
 from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
+
+_DEFAULT_TZ = ZoneInfo("Asia/Shanghai")
 
 from mwjrunner.assertions.builtin import create_default_registry
+from mwjrunner.cases.data_driver import expand_data_driven
+from mwjrunner.cases.discovery import discover_case_files
 from mwjrunner.cases.errors import CaseLoadError
+from mwjrunner.cases.filter import filter_cases
 from mwjrunner.cases.loader import load_yaml_case
 from mwjrunner.cases.model import RequestSpec, TestCase, TestStep
+from mwjrunner.config.loader import ConfigLoadError, load_config
+from mwjrunner.hooks.executor import run_hooks
 from mwjrunner.http.executor import HttpExecutor
 from mwjrunner.http.model import HttpResult
 from mwjrunner.logging.config import LogConfig
@@ -34,7 +44,7 @@ class RunConfigError(Exception):
 
 
 class RunExecutor:
-    """执行单个 YAML 用例文件并生成报告。"""
+    """执行 YAML 用例文件或目录并生成报告。"""
 
     def __init__(
         self,
@@ -44,12 +54,26 @@ class RunExecutor:
         report: str | None = None,
         report_dir: str | Path | None = None,
         cli_variables: dict[str, Any] | None = None,
+        retry: int = 0,
+        fail_fast: bool = False,
+        tags: list[str] | None = None,
+        exclude_tags: list[str] | None = None,
+        priority: list[str] | None = None,
+        workers: int = 1,
+        timezone_name: str | None = None,
     ) -> None:
         self.path = Path(path)
         self.base_url = base_url
         self.report_types = _parse_report_types(report)
         self.report_dir = Path(report_dir or DEFAULT_REPORT_DIR)
         self.cli_variables = dict(cli_variables or {})
+        self.retry = retry
+        self.fail_fast = fail_fast
+        self.tags = tags
+        self.exclude_tags = exclude_tags
+        self.priority = priority
+        self.workers = workers
+        self.tz = ZoneInfo(timezone_name) if timezone_name else ZoneInfo("Asia/Shanghai")
 
     def run(self) -> int:
         """执行用例、输出报告并返回退出码。"""
@@ -62,30 +86,75 @@ class RunExecutor:
     def execute(self) -> RunResult:
         """执行用例并返回结构化运行结果。"""
         run_id = _new_run_id()
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(self.tz)
         start_time = time.perf_counter()
         log_file = self.report_dir / run_id / "run.log"
         logger = configure_logging(LogConfig(run_id=run_id, log_file=log_file, console=True))
         logger.info("开始执行用例: %s", self.path)
 
         try:
-            case = load_yaml_case(self.path)
-            case_result = self._execute_case(case, logger)
-            ended_at = datetime.now(UTC)
-            summary = _build_summary([case_result], [], start_time)
+            case_files = discover_case_files(self.path)
+            if not case_files:
+                message = f"未发现用例文件: {self.path}"
+                logger.error(message)
+                return _error_run_result(run_id, started_at, start_time, [message])
+
+            # 加载并展开所有用例
+            all_cases: list[TestCase] = []
+            load_errors: list[CaseResult] = []
+            for case_file in case_files:
+                try:
+                    case = load_yaml_case(case_file)
+                    all_cases.extend(expand_data_driven(case))
+                except CaseLoadError as exc:
+                    logger.error("用例加载失败: %s - %s", case_file, exc)
+                    load_errors.append(CaseResult(
+                        name=str(case_file),
+                        status="error",
+                        source_file=str(case_file),
+                        errors=[str(exc)],
+                    ))
+
+            # 过滤
+            filtered_cases = filter_cases(
+                all_cases,
+                tags=self.tags,
+                exclude_tags=self.exclude_tags,
+                priority=self.priority,
+            )
+
+            if not filtered_cases and not load_errors:
+                logger.info("过滤后无可执行用例")
+                ended_at = datetime.now(self.tz)
+                return RunResult(
+                    run_id=run_id,
+                    started_at=started_at,
+                    ended_at=ended_at,
+                    summary=_build_summary([], [], start_time),
+                )
+
+            # 执行
+            case_results: list[CaseResult] = list(load_errors)
+
+            if self.workers > 1 and len(filtered_cases) > 1:
+                case_results.extend(self._run_concurrent(filtered_cases, logger))
+            else:
+                case_results.extend(self._run_serial(filtered_cases, logger))
+
+            ended_at = datetime.now(self.tz)
+            summary = _build_summary(case_results, [], start_time)
             result = RunResult(
                 run_id=run_id,
                 started_at=started_at,
                 ended_at=ended_at,
                 summary=summary,
-                cases=[case_result],
+                cases=case_results,
             )
-            logger.info("用例执行完成: %s", case.name)
+            logger.info("执行完成, 共 %d 个用例", len(case_results))
             return result
-        except (CaseLoadError, RunConfigError) as exc:
+        except RunConfigError as exc:
             logger.error("运行错误: %s", exc)
-            errors = [str(exc)]
-            return _error_run_result(run_id, started_at, start_time, errors)
+            return _error_run_result(run_id, started_at, start_time, [str(exc)])
         except Exception as exc:
             logger.exception("执行引擎内部错误")
             errors = [f"执行引擎内部错误: {exc}"]
@@ -100,8 +169,75 @@ class RunExecutor:
         if "html" in self.report_types:
             HtmlReporter().write(result, self.report_dir / result.run_id / "report.html")
 
+    def _run_serial(self, cases: list[TestCase], logger: logging.Logger) -> list[CaseResult]:
+        """串行执行用例。"""
+        results: list[CaseResult] = []
+        stopped = False
+        for case_to_run in cases:
+            if stopped:
+                results.append(CaseResult(
+                    name=case_to_run.name, status="skipped", source_file=case_to_run.source_file,
+                ))
+                continue
+            case_result = self._execute_case_with_retry(case_to_run, logger)
+            results.append(case_result)
+            if self.fail_fast and case_result.status in ("failed", "error"):
+                logger.info("fail-fast 触发, 停止后续用例执行")
+                stopped = True
+        return results
+
+    def _run_concurrent(self, cases: list[TestCase], logger: logging.Logger) -> list[CaseResult]:
+        """并发执行用例，结果按原始顺序返回。"""
+        stop_event = Event()
+        results: dict[int, CaseResult] = {}
+
+        def run_one(index: int, case: TestCase) -> tuple[int, CaseResult]:
+            if stop_event.is_set():
+                return index, CaseResult(name=case.name, status="skipped", source_file=case.source_file)
+            result = self._execute_case_with_retry(case, logger)
+            if self.fail_fast and result.status in ("failed", "error"):
+                stop_event.set()
+            return index, result
+
+        with ThreadPoolExecutor(max_workers=self.workers) as executor:
+            futures = {
+                executor.submit(run_one, i, case): i
+                for i, case in enumerate(cases)
+            }
+            for future in as_completed(futures):
+                index, case_result = future.result()
+                results[index] = case_result
+
+        return [results[i] for i in range(len(cases))]
+
+    def _execute_case_with_retry(self, case: TestCase, logger: logging.Logger) -> CaseResult:
+        """执行用例，支持失败重试。"""
+        max_retry = case.retry if case.retry is not None else self.retry
+        max_attempts = 1 + max_retry
+
+        last_result: CaseResult | None = None
+        for attempt in range(max_attempts):
+            if attempt > 0:
+                logger.info("重试用例: %s (attempt %d/%d)", case.name, attempt + 1, max_attempts)
+            last_result = self._execute_case(case, logger)
+            if last_result.status == "passed":
+                return last_result
+        return last_result  # type: ignore[return-value]
+
     def _execute_case(self, case: TestCase, logger: logging.Logger) -> CaseResult:
         variable_engine = VariableEngine({**case.variables, **self.cli_variables})
+        context = variable_engine.variables
+
+        # before_case hook
+        before_hooks = _get_hook_paths(case.hooks, "before_case")
+        if before_hooks:
+            hook_result = run_hooks(before_hooks, context)
+            if not hook_result.success:
+                return CaseResult(
+                    name=case.name, status="error", source_file=case.source_file,
+                    errors=[hook_result.error or "before_case hook 失败"],
+                )
+
         http_executor = HttpExecutor(base_url=self.base_url)
         registry = create_default_registry()
         steps: list[StepResult] = []
@@ -120,6 +256,14 @@ class RunExecutor:
             status = "failed"
         else:
             status = "passed"
+
+        # after_case hook
+        after_hooks = _get_hook_paths(case.hooks, "after_case")
+        if after_hooks:
+            hook_result = run_hooks(after_hooks, context)
+            if not hook_result.success:
+                errors.append(hook_result.error or "after_case hook 失败")
+                status = "error"
 
         return CaseResult(
             name=case.name,
@@ -170,22 +314,57 @@ def run_from_args(args: Any) -> int:
         if unsupported_options:
             joined_options = ", ".join(unsupported_options)
             _raise_config_error(f"当前 run 暂不支持参数: {joined_options}")
+
         cli_variables = _parse_cli_variables(getattr(args, "var", []) or [])
+        path = getattr(args, "path", None) or _raise_config_error("缺少用例文件路径")
+
+        # 加载配置（项目配置 + 环境配置）
+        env_name = getattr(args, "env", None)
+        project_dir = Path(path).parent if Path(path).is_file() else Path(path)
+        try:
+            config = load_config(env=env_name, project_dir=project_dir)
+        except ConfigLoadError as exc:
+            _raise_config_error(str(exc))
+            return ERROR_EXIT_CODE  # unreachable, for type checker
+
+        # CLI 参数覆盖配置
+        base_url = getattr(args, "base_url", None) or config.base_url
+        report = getattr(args, "report", None)
+        report_dir = getattr(args, "report_dir", None) or config.report_dir
+        retry = getattr(args, "retry", None) or config.retry
+        fail_fast = getattr(args, "fail_fast", False) or config.fail_fast
+        workers = getattr(args, "workers", None) or config.workers
+
+        # 解析过滤参数
+        tags = _parse_comma_list(getattr(args, "tags", None))
+        exclude_tags = _parse_comma_list(getattr(args, "exclude_tags", None))
+        priority = _parse_comma_list(getattr(args, "priority", None))
+
+        # 合并变量：config.variables < cli_variables
+        merged_variables = {**config.variables, **cli_variables}
+
         executor = RunExecutor(
-            path=getattr(args, "path", None) or _raise_config_error("缺少用例文件路径"),
-            base_url=getattr(args, "base_url", None),
-            report=getattr(args, "report", None),
-            report_dir=getattr(args, "report_dir", None),
-            cli_variables=cli_variables,
+            path=path,
+            base_url=base_url,
+            report=report,
+            report_dir=report_dir,
+            cli_variables=merged_variables,
+            retry=retry,
+            fail_fast=fail_fast,
+            tags=tags,
+            exclude_tags=exclude_tags,
+            priority=priority,
+            workers=workers,
+            timezone_name=config.timezone,
         )
         return executor.run()
     except RunConfigError as exc:
         run_id = _new_run_id()
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(_DEFAULT_TZ)
         result = RunResult(
             run_id=run_id,
             started_at=started_at,
-            ended_at=datetime.now(UTC),
+            ended_at=datetime.now(_DEFAULT_TZ),
             summary=Summary(total_errors=1),
             errors=[str(exc)],
         )
@@ -243,6 +422,7 @@ def _build_summary(case_results: list[CaseResult], errors: list[str], start_time
         passed_cases=sum(1 for case in case_results if case.status == "passed"),
         failed_cases=sum(1 for case in case_results if case.status == "failed"),
         error_cases=sum(1 for case in case_results if case.status == "error"),
+        skipped_cases=sum(1 for case in case_results if case.status == "skipped"),
         total_steps=total_steps,
         passed_steps=passed_steps,
         failed_steps=failed_steps,
@@ -255,7 +435,7 @@ def _build_summary(case_results: list[CaseResult], errors: list[str], start_time
 
 
 def _error_run_result(run_id: str, started_at: datetime, start_time: float, errors: list[str]) -> RunResult:
-    ended_at = datetime.now(UTC)
+    ended_at = datetime.now(_DEFAULT_TZ)
     return RunResult(
         run_id=run_id,
         started_at=started_at,
@@ -279,21 +459,25 @@ def _parse_report_types(report: str | None) -> tuple[str, ...]:
 
 
 def _collect_unsupported_options(args: Any) -> list[str]:
-    unsupported: list[str] = []
-    option_names = {
-        "env": "--env",
-        "tags": "--tags",
-        "exclude_tags": "--exclude-tags",
-        "priority": "--priority",
-        "workers": "--workers",
-        "retry": "--retry",
-        "fail_fast": "--fail-fast",
-    }
-    for attr_name, option_name in option_names.items():
-        value = getattr(args, attr_name, None)
-        if value not in (None, False):
-            unsupported.append(option_name)
-    return unsupported
+    return []
+
+
+def _parse_comma_list(value: str | None) -> list[str] | None:
+    """解析逗号分隔的字符串为列表，None 输入返回 None。"""
+    if value is None:
+        return None
+    items = [item.strip() for item in value.split(",") if item.strip()]
+    return items if items else None
+
+
+def _get_hook_paths(hooks: dict[str, str | list[str]], key: str) -> list[str]:
+    """从 hooks dict 中获取指定 key 的 hook 路径列表。"""
+    value = hooks.get(key)
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    return value
 
 
 def _parse_cli_variables(raw_variables: list[str]) -> dict[str, str]:
@@ -313,7 +497,7 @@ def _raise_config_error(message: str) -> None:
 
 
 def _new_run_id() -> str:
-    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now(_DEFAULT_TZ).strftime("%Y%m%d-%H%M%S")
     return f"{timestamp}-{uuid4().hex[:8]}"
 
 

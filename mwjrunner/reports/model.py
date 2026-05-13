@@ -29,6 +29,7 @@ class Summary:
     passed_cases: int = 0
     failed_cases: int = 0
     error_cases: int = 0
+    skipped_cases: int = 0
     total_steps: int = 0
     passed_steps: int = 0
     failed_steps: int = 0
@@ -45,6 +46,7 @@ class Summary:
             "passed_cases": self.passed_cases,
             "failed_cases": self.failed_cases,
             "error_cases": self.error_cases,
+            "skipped_cases": self.skipped_cases,
             "total_steps": self.total_steps,
             "passed_steps": self.passed_steps,
             "failed_steps": self.failed_steps,

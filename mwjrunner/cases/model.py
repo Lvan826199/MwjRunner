@@ -61,4 +61,9 @@ class TestCase:
     steps: list[TestStep]
     variables: dict[str, Any] = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)
+    priority: str | None = None
     source_file: str | None = None
+    data: list[dict[str, Any]] | None = None
+    data_file: str | None = None
+    retry: int | None = None
+    hooks: dict[str, str | list[str]] = field(default_factory=dict)
