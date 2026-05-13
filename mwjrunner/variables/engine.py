@@ -61,17 +61,28 @@ class VariableEngine:
 
     def extract(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
         """从 HTTP 响应中提取单个变量。"""
-        if spec.type != "json_path":
-            message = f"不支持的提取类型: {spec.type}"
-            if spec.optional:
-                return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
-            raise VariableError(message)
         if result.response is None:
             message = "响应为空,无法提取变量"
             if spec.optional:
                 return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
             raise VariableError(message)
 
+        if spec.type == "json_path":
+            return self._extract_json_path(spec, result)
+        if spec.type == "header":
+            return self._extract_header(spec, result)
+        if spec.type == "cookie":
+            return self._extract_cookie(spec, result)
+        if spec.type == "regex":
+            return self._extract_regex(spec, result)
+
+        message = f"不支持的提取类型: {spec.type}"
+        if spec.optional:
+            return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
+        raise VariableError(message)
+
+    def _extract_json_path(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
+        """JSONPath 提取。"""
         try:
             value = resolve_json_path(result.response.json(), spec.path)
         except json.JSONDecodeError as exc:
@@ -91,13 +102,59 @@ class VariableEngine:
 
         self.variables[spec.name] = value
         return ExtractResult(
-            name=spec.name,
-            type=spec.type,
-            path=spec.path,
-            value=value,
-            extracted=True,
-            optional=spec.optional,
-            message="变量提取成功",
+            name=spec.name, type=spec.type, path=spec.path,
+            value=value, extracted=True, optional=spec.optional, message="变量提取成功",
+        )
+
+    def _extract_header(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
+        """从响应 header 提取。path 为 header 名称。"""
+        header_name = spec.path
+        value = None
+        for key, val in result.response.headers.items():
+            if key.lower() == header_name.lower():
+                value = val
+                break
+        if value is None:
+            message = f"响应 header 中未找到: {header_name}"
+            if spec.optional:
+                return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
+            raise VariableError(message)
+        self.variables[spec.name] = value
+        return ExtractResult(
+            name=spec.name, type=spec.type, path=spec.path,
+            value=value, extracted=True, optional=spec.optional, message="变量提取成功",
+        )
+
+    def _extract_cookie(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
+        """从响应 cookie 提取。path 为 cookie 名称。"""
+        cookie_name = spec.path
+        value = result.response.cookies.get(cookie_name)
+        if value is None:
+            message = f"响应 cookie 中未找到: {cookie_name}"
+            if spec.optional:
+                return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
+            raise VariableError(message)
+        self.variables[spec.name] = value
+        return ExtractResult(
+            name=spec.name, type=spec.type, path=spec.path,
+            value=value, extracted=True, optional=spec.optional, message="变量提取成功",
+        )
+
+    def _extract_regex(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
+        """从响应体正则提取。path 为正则表达式，第一个捕获组为提取值。"""
+        import re
+        text = result.response.text
+        match = re.search(spec.path, text)
+        if match is None:
+            message = f"正则表达式未匹配: {spec.path}"
+            if spec.optional:
+                return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
+            raise VariableError(message)
+        value = match.group(1) if match.lastindex and match.lastindex >= 1 else match.group(0)
+        self.variables[spec.name] = value
+        return ExtractResult(
+            name=spec.name, type=spec.type, path=spec.path,
+            value=value, extracted=True, optional=spec.optional, message="变量提取成功",
         )
 
     def _render_string(self, value: str) -> Any:

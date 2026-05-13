@@ -187,6 +187,68 @@ def assert_response_time(spec: AssertionSpec, result: HttpResult) -> AssertionRe
     )
 
 
+def assert_regex(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
+    """断言响应体匹配正则表达式。"""
+    import re
+
+    actual = result.response.text if result.response is not None else None
+    if actual is None:
+        return AssertionResult(
+            type=spec.type, passed=False, expected=spec.expected, actual=None,
+            path=spec.path, target=spec.target, mode=spec.mode,
+            message="regex 断言失败: 响应为空",
+        )
+    pattern = str(spec.expected)
+    match = re.search(pattern, actual)
+    passed = match is not None
+    return AssertionResult(
+        type=spec.type, passed=passed, expected=pattern, actual=match.group(0) if match else None,
+        path=spec.path, target=spec.target, mode=spec.mode,
+        message="regex 断言通过" if passed else f"regex 断言失败: 响应体不匹配模式 {pattern}",
+    )
+
+
+def assert_header(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
+    """断言响应 header 值。"""
+    if result.response is None:
+        return AssertionResult(
+            type=spec.type, passed=False, expected=spec.expected, actual=None,
+            path=spec.path, target=spec.target, mode=spec.mode,
+            message="header 断言失败: 响应为空",
+        )
+    header_name = spec.path or spec.target or ""
+    # header 名称不区分大小写
+    actual = None
+    for key, value in result.response.headers.items():
+        if key.lower() == header_name.lower():
+            actual = value
+            break
+    passed = actual == spec.expected
+    return AssertionResult(
+        type=spec.type, passed=passed, expected=spec.expected, actual=actual,
+        path=header_name, target=spec.target, mode=spec.mode,
+        message="header 断言通过" if passed else f"header 断言失败: {header_name} 期望 {spec.expected}, 实际 {actual}",
+    )
+
+
+def assert_cookie(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
+    """断言响应 cookie 值。"""
+    if result.response is None:
+        return AssertionResult(
+            type=spec.type, passed=False, expected=spec.expected, actual=None,
+            path=spec.path, target=spec.target, mode=spec.mode,
+            message="cookie 断言失败: 响应为空",
+        )
+    cookie_name = spec.path or spec.target or ""
+    actual = result.response.cookies.get(cookie_name)
+    passed = actual == spec.expected
+    return AssertionResult(
+        type=spec.type, passed=passed, expected=spec.expected, actual=actual,
+        path=cookie_name, target=spec.target, mode=spec.mode,
+        message="cookie 断言通过" if passed else f"cookie 断言失败: {cookie_name} 期望 {spec.expected}, 实际 {actual}",
+    )
+
+
 def create_default_registry() -> AssertionRegistry:
     """创建包含内置断言的注册表。"""
     registry = AssertionRegistry()
@@ -196,6 +258,9 @@ def create_default_registry() -> AssertionRegistry:
     registry.register("contains", assert_body_contains)
     registry.register("json_schema", assert_json_schema)
     registry.register("response_time", assert_response_time)
+    registry.register("regex", assert_regex)
+    registry.register("header", assert_header)
+    registry.register("cookie", assert_cookie)
     return registry
 
 
