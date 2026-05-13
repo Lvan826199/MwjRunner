@@ -5,3 +5,6 @@ from sqlalchemy.orm import DeclarativeBase
 
 class Base(DeclarativeBase):
     pass
+
+
+from app.models.case import TestCase  # noqa: E402, F401
