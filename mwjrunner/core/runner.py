@@ -56,7 +56,7 @@ class RunExecutor:
         report: str | None = None,
         report_dir: str | Path | None = None,
         cli_variables: dict[str, Any] | None = None,
-        retry: int = 0,
+        retry: int = 2,
         fail_fast: bool = False,
         tags: list[str] | None = None,
         exclude_tags: list[str] | None = None,
@@ -65,6 +65,7 @@ class RunExecutor:
         timezone_name: str | None = None,
         auth: AuthConfig | None = None,
         quality_gate: QualityGateConfig | None = None,
+        notify_configs: list[Any] | None = None,
     ) -> None:
         self.path = Path(path)
         self.base_url = base_url
@@ -80,6 +81,7 @@ class RunExecutor:
         self.tz = ZoneInfo(timezone_name) if timezone_name else ZoneInfo("Asia/Shanghai")
         self.auth = auth
         self.quality_gate = quality_gate
+        self.notify_configs = notify_configs or []
 
     def run(self) -> int:
         """执行用例、输出报告并返回退出码。"""
@@ -87,6 +89,10 @@ class RunExecutor:
 
         result = self.execute()
         self.write_reports(result)
+
+        # 发送通知
+        self._send_notifications(result)
+
         if any(error.startswith("执行引擎内部错误") for error in result.errors):
             return INTERNAL_ERROR_EXIT_CODE
 
@@ -101,6 +107,16 @@ class RunExecutor:
                 return QUALITY_GATE_EXIT_CODE
 
         return exit_code
+
+    def _send_notifications(self, result: RunResult) -> None:
+        """发送通知（如果配置了通知渠道）。"""
+        if not self.notify_configs:
+            return
+        from mwjrunner.notifications import send_notification
+        for config in self.notify_configs:
+            notify_result = send_notification(result, config)
+            if not notify_result.success:
+                print(f"  [通知] 发送失败: {notify_result.message}")
 
     def execute(self) -> RunResult:
         """执行用例并返回结构化运行结果。"""
@@ -391,6 +407,7 @@ def run_from_args(args: Any) -> int:
             timezone_name=config.timezone,
             auth=config.auth,
             quality_gate=parse_quality_gate_config(config.quality_gate),
+            notify_configs=_parse_notify_configs(config.notifications),
         )
         return executor.run()
     except RunConfigError as exc:
@@ -583,3 +600,11 @@ def _new_run_id() -> str:
 
 def _elapsed_ms(start_time: float) -> float:
     return round((time.perf_counter() - start_time) * 1000, 3)
+
+
+def _parse_notify_configs(raw: list[dict[str, Any]] | None) -> list[Any]:
+    """解析通知配置列表。"""
+    if not raw:
+        return []
+    from mwjrunner.notifications import parse_notify_configs
+    return parse_notify_configs(raw)

@@ -113,3 +113,7 @@ def _merge_config(config: ProjectConfig, data: dict[str, Any]) -> None:
     # quality_gate 配置
     if "quality_gate" in data and isinstance(data["quality_gate"], dict):
         config.quality_gate = data["quality_gate"]
+
+    # notifications 配置
+    if "notifications" in data and isinstance(data["notifications"], list):
+        config.notifications = data["notifications"]

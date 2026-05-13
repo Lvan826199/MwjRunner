@@ -42,9 +42,10 @@ class ProjectConfig:
     variables: dict[str, Any] = field(default_factory=dict)
     report_dir: str = "reports"
     report_types: tuple[str, ...] = ("console",)
-    retry: int = 0
+    retry: int = 2
     fail_fast: bool = False
     workers: int = 1
     timezone: str = "Asia/Shanghai"
     auth: AuthConfig | None = None
     quality_gate: dict[str, Any] | None = None
+    notifications: list[dict[str, Any]] | None = None

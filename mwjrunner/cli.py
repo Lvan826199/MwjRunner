@@ -62,6 +62,17 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--dir", default=".", help="初始化目标目录,默认当前目录。")
     init_parser.set_defaults(handler=handle_init)
 
+    # import 子命令
+    import_parser = subparsers.add_parser(
+        "import",
+        help="导入外部用例集合",
+        description="从 Postman Collection 等格式导入并生成 MwjRunner YAML 用例。",
+    )
+    import_parser.add_argument("source", help="源文件路径（如 postman_collection.json）。")
+    import_parser.add_argument("--format", default="postman", choices=["postman", "openapi"], help="源格式,默认 postman。")
+    import_parser.add_argument("--output", "-o", default="cases/imported", help="输出目录,默认 cases/imported。")
+    import_parser.set_defaults(handler=handle_import)
+
     return parser
 
 
@@ -149,6 +160,37 @@ def handle_init(args: argparse.Namespace) -> int:
 
     print()
     print("项目初始化完成。运行 mwjrunner run cases/ --base-url <url> 开始测试。")
+    return 0
+
+
+def handle_import(args: argparse.Namespace) -> int:
+    """处理 import 子命令：导入外部用例集合。"""
+    from mwjrunner.importers import import_postman_collection
+    from mwjrunner.importers.openapi import generate_from_openapi
+
+    source = Path(args.source)
+    output = Path(args.output)
+    fmt = args.format
+
+    try:
+        if fmt == "postman":
+            generated = import_postman_collection(source, output)
+        elif fmt == "openapi":
+            generated = generate_from_openapi(source, output)
+        else:
+            print(f"不支持的导入格式: {fmt}")
+            return 2
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"导入失败: {exc}")
+        return 2
+
+    if not generated:
+        print("未发现可导入的请求。")
+        return 0
+
+    print(f"导入完成，共生成 {len(generated)} 个用例文件:")
+    for file_path in generated:
+        print(f"  {file_path}")
     return 0
 
 
