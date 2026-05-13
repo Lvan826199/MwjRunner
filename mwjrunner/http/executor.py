@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import time
+from pathlib import Path
+from typing import IO, Any
 from urllib.parse import urljoin
 
 try:
@@ -54,21 +56,32 @@ class HttpExecutor:
         timeout = request_spec.timeout or self.default_timeout
 
         try:
+            # 准备文件上传
+            files_param = None
+            opened_files = []
+            if request_spec.files:
+                files_param, opened_files = self._prepare_files(request_spec.files)
+
             start_time = time.perf_counter()
             transport = httpx.HTTPTransport()
-            with httpx.Client(
-                timeout=timeout, follow_redirects=True, transport=transport
-            ) as client:
-                response = client.request(
-                    method=request_spec.method,
-                    url=url,
-                    headers=request_spec.headers,
-                    params=request_spec.query,
-                    cookies=request_spec.cookies,
-                    json=request_spec.json,
-                    data=request_spec.data,
-                    content=request_spec.body,
-                )
+            try:
+                with httpx.Client(
+                    timeout=timeout, follow_redirects=True, transport=transport
+                ) as client:
+                    response = client.request(
+                        method=request_spec.method,
+                        url=url,
+                        headers=request_spec.headers,
+                        params=request_spec.query,
+                        cookies=request_spec.cookies,
+                        json=request_spec.json if not files_param else None,
+                        data=request_spec.data,
+                        content=request_spec.body if not files_param else None,
+                        files=files_param,
+                    )
+            finally:
+                for f in opened_files:
+                    f.close()
             elapsed_ms = (time.perf_counter() - start_time) * 1000
 
             response_snapshot = HttpResponse(
@@ -124,6 +137,41 @@ class HttpExecutor:
         if self.base_url and not url.startswith(("http://", "https://")):
             return urljoin(self.base_url, url)
         return url
+
+    def _prepare_files(
+        self, file_specs: list[dict[str, str]]
+    ) -> tuple[list[tuple[str, tuple[str, IO[bytes], str]]], list[IO[bytes]]]:
+        """准备文件上传参数。
+
+        Args:
+            file_specs: 文件配置列表，每项包含 field_name 和 path，可选 content_type
+
+        Returns:
+            (httpx files 参数, 需要关闭的文件句柄列表)
+        """
+        import mimetypes
+
+        files_param: list[tuple[str, tuple[str, IO[bytes], str]]] = []
+        opened: list[IO[bytes]] = []
+
+        for spec in file_specs:
+            field_name = spec.get("field", spec.get("field_name", "file"))
+            file_path_str = spec.get("path", "")
+            content_type = spec.get("content_type", "")
+
+            file_path = Path(file_path_str)
+            if not file_path.is_file():
+                raise FileNotFoundError(f"上传文件不存在: {file_path}")
+
+            if not content_type:
+                guessed, _ = mimetypes.guess_type(str(file_path))
+                content_type = guessed or "application/octet-stream"
+
+            fh = open(file_path, "rb")  # noqa: SIM115
+            opened.append(fh)
+            files_param.append((field_name, (file_path.name, fh, content_type)))
+
+        return files_param, opened
 
     def _build_body(self, request_spec: RequestSpec) -> str | bytes | None:
         """构建请求体快照。"""

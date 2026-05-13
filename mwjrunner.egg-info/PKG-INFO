@@ -5,5 +5,7 @@ Summary: Add your description here
 Requires-Python: >=3.13
 License-File: LICENSE
 Requires-Dist: httpx>=0.28.1
+Requires-Dist: jsonschema>=4.26.0
 Requires-Dist: pyyaml>=6.0.3
+Requires-Dist: tzdata>=2026.2
 Dynamic: license-file

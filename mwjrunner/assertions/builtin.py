@@ -79,6 +79,114 @@ def assert_body_contains(spec: AssertionSpec, result: HttpResult) -> AssertionRe
     )
 
 
+def assert_json_schema(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
+    """断言响应体符合 JSON Schema。"""
+    import jsonschema
+
+    if result.response is None:
+        return AssertionResult(
+            type=spec.type,
+            passed=False,
+            expected=spec.expected,
+            actual=None,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message="json_schema 断言失败: 响应为空",
+        )
+
+    try:
+        response_data = result.response.json()
+    except (json.JSONDecodeError, ValueError) as exc:
+        return AssertionResult(
+            type=spec.type,
+            passed=False,
+            expected=spec.expected,
+            actual=None,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message=f"json_schema 断言失败: 响应体非 JSON - {exc}",
+        )
+
+    schema = spec.expected
+    if not isinstance(schema, dict):
+        return AssertionResult(
+            type=spec.type,
+            passed=False,
+            expected=spec.expected,
+            actual=response_data,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message="json_schema 断言失败: expected 必须是 JSON Schema 对象",
+        )
+
+    try:
+        jsonschema.validate(instance=response_data, schema=schema)
+        return AssertionResult(
+            type=spec.type,
+            passed=True,
+            expected=schema,
+            actual=response_data,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message="json_schema 断言通过",
+        )
+    except jsonschema.ValidationError as exc:
+        path_str = ".".join(str(p) for p in exc.absolute_path) if exc.absolute_path else "$"
+        return AssertionResult(
+            type=spec.type,
+            passed=False,
+            expected=schema,
+            actual=response_data,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message=f"json_schema 断言失败: 路径 {path_str} - {exc.message}",
+        )
+    except jsonschema.SchemaError as exc:
+        return AssertionResult(
+            type=spec.type,
+            passed=False,
+            expected=schema,
+            actual=response_data,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message=f"json_schema 断言失败: Schema 无效 - {exc.message}",
+        )
+
+
+def assert_response_time(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
+    """断言响应时间不超过阈值（毫秒）。"""
+    actual = result.response.elapsed_ms if result.response is not None else None
+    if actual is None:
+        return AssertionResult(
+            type=spec.type,
+            passed=False,
+            expected=spec.expected,
+            actual=None,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message="response_time 断言失败: 响应为空,无法获取耗时",
+        )
+    threshold = spec.expected
+    passed = actual <= threshold
+    return AssertionResult(
+        type=spec.type,
+        passed=passed,
+        expected=threshold,
+        actual=actual,
+        path=spec.path,
+        target=spec.target,
+        mode=spec.mode,
+        message="response_time 断言通过" if passed else f"response_time 断言失败: 实际耗时 {actual}ms 超过阈值 {threshold}ms",
+    )
+
+
 def create_default_registry() -> AssertionRegistry:
     """创建包含内置断言的注册表。"""
     registry = AssertionRegistry()
@@ -86,6 +194,8 @@ def create_default_registry() -> AssertionRegistry:
     registry.register("json_path", assert_json_path)
     registry.register("body_contains", assert_body_contains)
     registry.register("contains", assert_body_contains)
+    registry.register("json_schema", assert_json_schema)
+    registry.register("response_time", assert_response_time)
     return registry
 
 

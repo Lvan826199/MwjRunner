@@ -19,6 +19,7 @@ class RequestSpec:
     data: Any | None = None
     body: str | bytes | None = None
     timeout: float | None = None
+    files: list[dict[str, str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -67,3 +68,4 @@ class TestCase:
     data_file: str | None = None
     retry: int | None = None
     hooks: dict[str, str | list[str]] = field(default_factory=dict)
+    auth: dict[str, Any] | None = None

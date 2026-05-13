@@ -141,3 +141,73 @@ class TestAssertions:
         assert len(results) == 2
         assert results[0].passed is False
         assert results[1].passed is True
+
+    def test_response_time_passed(self) -> None:
+        registry = create_default_registry()
+        spec = AssertionSpec(type="response_time", expected=1000)
+
+        result = registry.execute(spec, _http_result())
+
+        assert result.passed is True
+        assert result.actual == 12.3
+        assert result.expected == 1000
+
+    def test_response_time_failed(self) -> None:
+        registry = create_default_registry()
+        spec = AssertionSpec(type="response_time", expected=5)
+
+        result = registry.execute(spec, _http_result())
+
+        assert result.passed is False
+        assert result.actual == 12.3
+        assert "超过阈值 5ms" in result.message
+
+    def test_response_time_no_response(self) -> None:
+        registry = create_default_registry()
+        spec = AssertionSpec(type="response_time", expected=1000)
+        http_result = HttpResult(request=HttpRequest(method="GET", url="/test"))
+
+        result = registry.execute(spec, http_result)
+
+        assert result.passed is False
+        assert result.actual is None
+        assert "响应为空" in result.message
+
+    def test_json_schema_passed(self) -> None:
+        registry = create_default_registry()
+        schema = {"type": "object", "properties": {"status": {"type": "string"}}, "required": ["status"]}
+        spec = AssertionSpec(type="json_schema", expected=schema)
+
+        result = registry.execute(spec, _http_result())
+
+        assert result.passed is True
+
+    def test_json_schema_failed(self) -> None:
+        registry = create_default_registry()
+        schema = {"type": "object", "properties": {"count": {"type": "integer"}}, "required": ["count"]}
+        spec = AssertionSpec(type="json_schema", expected=schema)
+
+        result = registry.execute(spec, _http_result())
+
+        assert result.passed is False
+        assert "json_schema 断言失败" in result.message
+
+    def test_json_schema_invalid_schema(self) -> None:
+        registry = create_default_registry()
+        spec = AssertionSpec(type="json_schema", expected="not a schema")
+
+        result = registry.execute(spec, _http_result())
+
+        assert result.passed is False
+        assert "expected 必须是 JSON Schema 对象" in result.message
+
+    def test_json_schema_no_response(self) -> None:
+        registry = create_default_registry()
+        schema = {"type": "object"}
+        spec = AssertionSpec(type="json_schema", expected=schema)
+        http_result = HttpResult(request=HttpRequest(method="GET", url="/test"))
+
+        result = registry.execute(spec, http_result)
+
+        assert result.passed is False
+        assert "响应为空" in result.message

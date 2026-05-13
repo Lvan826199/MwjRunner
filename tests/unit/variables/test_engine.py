@@ -90,3 +90,68 @@ class TestVariableEngine:
 
         with pytest.raises(VariableError, match="响应 JSON 解析失败"):
             engine.extract(spec, _http_result(body=b"not-json"))
+
+
+@pytest.mark.unit
+class TestBuiltinFunctions:
+    """内置函数化数据生成测试。"""
+
+    def test_timestamp_returns_digits(self) -> None:
+        engine = VariableEngine()
+        result = engine.render("${__timestamp()}")
+        assert result.isdigit()
+        assert len(result) == 10
+
+    def test_timestamp_ms(self) -> None:
+        engine = VariableEngine()
+        result = engine.render("${__timestamp(ms)}")
+        assert result.isdigit()
+        assert len(result) == 13
+
+    def test_uuid_format(self) -> None:
+        engine = VariableEngine()
+        result = engine.render("${__uuid()}")
+        assert len(result) == 36
+        assert result.count("-") == 4
+
+    def test_random_phone_format(self) -> None:
+        engine = VariableEngine()
+        result = engine.render("${__random_phone()}")
+        assert len(result) == 11
+        assert result.isdigit()
+
+    def test_random_int_default_range(self) -> None:
+        engine = VariableEngine()
+        result = engine.render("${__random_int()}")
+        assert 0 <= int(result) <= 9999
+
+    def test_random_int_custom_range(self) -> None:
+        engine = VariableEngine()
+        result = engine.render("${__random_int(100, 200)}")
+        assert 100 <= int(result) <= 200
+
+    def test_random_str_default_length(self) -> None:
+        engine = VariableEngine()
+        result = engine.render("${__random_str()}")
+        assert len(result) == 8
+
+    def test_random_str_custom_length(self) -> None:
+        engine = VariableEngine()
+        result = engine.render("${__random_str(16)}")
+        assert len(result) == 16
+
+    def test_md5_hash(self) -> None:
+        engine = VariableEngine()
+        result = engine.render("${__md5(hello)}")
+        assert result == "5d41402abc4b2a76b9719d911017c592"
+
+    def test_function_in_mixed_string(self) -> None:
+        engine = VariableEngine({"name": "test"})
+        result = engine.render("user_${name}_${__uuid()}")
+        assert result.startswith("user_test_")
+        assert len(result) > len("user_test_")
+
+    def test_unknown_function_raises_error(self) -> None:
+        engine = VariableEngine()
+        with pytest.raises(VariableError, match="未注册的内置函数"):
+            engine.render("${__nonexistent()}")

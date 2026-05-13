@@ -52,6 +52,7 @@ def parse_case(raw_case: Any, source_file: str) -> TestCase:
     data_file = _optional_string(raw_case, "data_file", source_file)
     retry = _optional_int(raw_case, "retry", source_file)
     hooks = _optional_hooks(raw_case, "hooks", source_file)
+    auth = _optional_auth(raw_case, "auth", source_file)
     steps = _parse_steps(raw_case.get("steps"), source_file)
 
     return TestCase(
@@ -65,6 +66,7 @@ def parse_case(raw_case: Any, source_file: str) -> TestCase:
         data_file=data_file,
         retry=retry,
         hooks=hooks,
+        auth=auth,
     )
 
 
@@ -117,7 +119,24 @@ def _parse_request(raw_request: Any, source_file: str, field: str) -> RequestSpe
         data=raw_request.get("data"),
         body=raw_request.get("body"),
         timeout=float(timeout) if timeout is not None else None,
+        files=_parse_files(raw_request.get("files"), source_file, f"{field}.files"),
     )
+
+
+def _parse_files(raw_files: Any, source_file: str, field: str) -> list[dict[str, str]] | None:
+    if raw_files is None:
+        return None
+    if not isinstance(raw_files, list):
+        raise _error(source_file, field, "files 必须是列表。", "请使用 files: [{field: file, path: ./a.txt}] 格式。")
+    files: list[dict[str, str]] = []
+    for index, item in enumerate(raw_files):
+        item_field = f"{field}[{index}]"
+        if not isinstance(item, dict):
+            raise _error(source_file, item_field, "files 每项必须是对象。", "请使用 {field: file, path: ./a.txt} 格式。")
+        if "path" not in item or not isinstance(item["path"], str):
+            raise _error(source_file, f"{item_field}.path", "files 每项必须包含 path 字段。", "请填写文件路径。")
+        files.append({k: str(v) for k, v in item.items()})
+    return files
 
 
 def _parse_assertions(raw_assertions: Any, source_file: str, field: str) -> list[AssertionSpec]:
@@ -307,6 +326,22 @@ def _optional_hooks(raw: dict[str, Any], key: str, source_file: str) -> dict[str
             source_file, f"{key}.{hook_key}",
             "hook 值必须是字符串或字符串列表。",
             "请使用模块路径,例如 myproject.hooks.setup。",
+        )
+    return value
+
+
+def _optional_auth(raw: dict[str, Any], key: str, source_file: str) -> dict[str, Any] | None:
+    value = raw.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise _error(source_file, key, f"{key} 必须是对象。", "请使用 auth: type: bearer, token: xxx 格式。")
+    auth_type = value.get("type")
+    if auth_type not in ("bearer", "basic"):
+        raise _error(
+            source_file, f"{key}.type",
+            f"不支持的认证类型: {auth_type}。",
+            "支持的类型: bearer, basic。",
         )
     return value
 

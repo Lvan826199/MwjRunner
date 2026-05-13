@@ -23,13 +23,15 @@ from mwjrunner.cases.filter import filter_cases
 from mwjrunner.cases.loader import load_yaml_case
 from mwjrunner.cases.model import RequestSpec, TestCase, TestStep
 from mwjrunner.config.loader import ConfigLoadError, load_config
+from mwjrunner.config.model import AuthConfig
+from mwjrunner.core.quality_gate import QualityGateConfig, evaluate_quality_gate, parse_quality_gate_config
 from mwjrunner.hooks.executor import run_hooks
 from mwjrunner.http.executor import HttpExecutor
 from mwjrunner.http.model import HttpResult
 from mwjrunner.logging.config import LogConfig
 from mwjrunner.logging.setup import configure_logging
 from mwjrunner.reports.console import ConsoleReporter
-from mwjrunner.reports.exit_code import ERROR_EXIT_CODE, INTERNAL_ERROR_EXIT_CODE, resolve_exit_code
+from mwjrunner.reports.exit_code import ASSERTION_FAILED_EXIT_CODE, ERROR_EXIT_CODE, INTERNAL_ERROR_EXIT_CODE, SUCCESS_EXIT_CODE, resolve_exit_code
 from mwjrunner.reports.html import HtmlReporter
 from mwjrunner.reports.json import JsonReporter
 from mwjrunner.reports.model import CaseResult, RunResult, StepResult, Summary
@@ -61,6 +63,8 @@ class RunExecutor:
         priority: list[str] | None = None,
         workers: int = 1,
         timezone_name: str | None = None,
+        auth: AuthConfig | None = None,
+        quality_gate: QualityGateConfig | None = None,
     ) -> None:
         self.path = Path(path)
         self.base_url = base_url
@@ -74,14 +78,29 @@ class RunExecutor:
         self.priority = priority
         self.workers = workers
         self.tz = ZoneInfo(timezone_name) if timezone_name else ZoneInfo("Asia/Shanghai")
+        self.auth = auth
+        self.quality_gate = quality_gate
 
     def run(self) -> int:
         """执行用例、输出报告并返回退出码。"""
+        from mwjrunner.reports.exit_code import QUALITY_GATE_EXIT_CODE
+
         result = self.execute()
         self.write_reports(result)
         if any(error.startswith("执行引擎内部错误") for error in result.errors):
             return INTERNAL_ERROR_EXIT_CODE
-        return resolve_exit_code(result)
+
+        exit_code = resolve_exit_code(result)
+
+        # 质量门禁检查（仅在执行成功或断言失败时评估）
+        if self.quality_gate and exit_code in (SUCCESS_EXIT_CODE, ASSERTION_FAILED_EXIT_CODE):
+            gate_result = evaluate_quality_gate(result, self.quality_gate)
+            if not gate_result.passed:
+                for violation in gate_result.violations:
+                    print(f"  [质量门禁] {violation}")
+                return QUALITY_GATE_EXIT_CODE
+
+        return exit_code
 
     def execute(self) -> RunResult:
         """执行用例并返回结构化运行结果。"""
@@ -238,13 +257,19 @@ class RunExecutor:
                     errors=[hook_result.error or "before_case hook 失败"],
                 )
 
+        # 解析认证配置：case 级覆盖全局
+        effective_auth = _resolve_auth(case.auth, self.auth, variable_engine)
+
+        # 用例文件所在目录，用于解析相对路径
+        case_dir = Path(case.source_file).parent if case.source_file else None
+
         http_executor = HttpExecutor(base_url=self.base_url)
         registry = create_default_registry()
         steps: list[StepResult] = []
         errors: list[str] = []
 
         for step in case.steps:
-            step_result = self._execute_step(step, variable_engine, http_executor, registry, logger)
+            step_result = self._execute_step(step, variable_engine, http_executor, registry, logger, effective_auth, case_dir)
             steps.append(step_result)
             if step_result.status == "error":
                 errors.extend(step_result.errors)
@@ -280,11 +305,19 @@ class RunExecutor:
         http_executor: HttpExecutor,
         registry: Any,
         logger: logging.Logger,
+        auth_header: str | None = None,
+        case_dir: Path | None = None,
     ) -> StepResult:
         start_time = time.perf_counter()
         logger.info("开始执行步骤: %s", step.name)
         try:
-            rendered_request = _render_request(step.request, variable_engine)
+            rendered_request = _render_request(step.request, variable_engine, case_dir)
+            # 注入认证 header（不覆盖用户显式声明的 Authorization）
+            if auth_header and "authorization" not in {k.lower() for k in rendered_request.headers}:
+                rendered_request = replace(
+                    rendered_request,
+                    headers={**rendered_request.headers, "Authorization": auth_header},
+                )
             http_result = http_executor.execute(rendered_request)
             if http_result.error is not None:
                 message = f"HTTP 请求失败: {http_result.error.error_type}: {http_result.error.message}"
@@ -356,6 +389,8 @@ def run_from_args(args: Any) -> int:
             priority=priority,
             workers=workers,
             timezone_name=config.timezone,
+            auth=config.auth,
+            quality_gate=parse_quality_gate_config(config.quality_gate),
         )
         return executor.run()
     except RunConfigError as exc:
@@ -372,7 +407,19 @@ def run_from_args(args: Any) -> int:
         return ERROR_EXIT_CODE
 
 
-def _render_request(request: RequestSpec, variable_engine: VariableEngine) -> RequestSpec:
+def _render_request(request: RequestSpec, variable_engine: VariableEngine, case_dir: Path | None = None) -> RequestSpec:
+    rendered_files = None
+    if request.files:
+        rendered_files = []
+        for file_spec in request.files:
+            rendered_spec = {k: variable_engine.render(v) for k, v in file_spec.items()}
+            # 解析相对路径
+            if case_dir and "path" in rendered_spec:
+                file_path = Path(rendered_spec["path"])
+                if not file_path.is_absolute():
+                    rendered_spec["path"] = str(case_dir / file_path)
+            rendered_files.append(rendered_spec)
+
     return replace(
         request,
         method=variable_engine.render(request.method),
@@ -383,7 +430,40 @@ def _render_request(request: RequestSpec, variable_engine: VariableEngine) -> Re
         json=variable_engine.render(request.json),
         data=variable_engine.render(request.data),
         body=variable_engine.render(request.body),
+        files=rendered_files,
     )
+
+
+def _resolve_auth(
+    case_auth: dict[str, Any] | None,
+    global_auth: AuthConfig | None,
+    variable_engine: VariableEngine,
+) -> str | None:
+    """解析认证配置，返回 Authorization header 值。case 级优先于全局。"""
+    auth_dict = case_auth
+    if auth_dict is not None:
+        # case 级 auth，先渲染变量
+        rendered = variable_engine.render(auth_dict)
+        auth_config = AuthConfig(
+            type=rendered.get("type", "bearer"),
+            token=rendered.get("token"),
+            username=rendered.get("username"),
+            password=rendered.get("password"),
+        )
+        return auth_config.to_header_value()
+    if global_auth is not None:
+        # 全局 auth 中的 token 等字段也可能包含变量引用
+        rendered_token = variable_engine.render(global_auth.token) if global_auth.token else global_auth.token
+        rendered_username = variable_engine.render(global_auth.username) if global_auth.username else global_auth.username
+        rendered_password = variable_engine.render(global_auth.password) if global_auth.password else global_auth.password
+        resolved = AuthConfig(
+            type=global_auth.type,
+            token=rendered_token,
+            username=rendered_username,
+            password=rendered_password,
+        )
+        return resolved.to_header_value()
+    return None
 
 
 def _step_result(

@@ -15,7 +15,7 @@ from typing import Any
 
 import yaml
 
-from mwjrunner.config.model import ProjectConfig
+from mwjrunner.config.model import AuthConfig, ProjectConfig
 
 
 class ConfigLoadError(Exception):
@@ -99,3 +99,17 @@ def _merge_config(config: ProjectConfig, data: dict[str, Any]) -> None:
         config.headers.update(data["headers"])
     if "variables" in data and isinstance(data["variables"], dict):
         config.variables.update(data["variables"])
+
+    # auth 配置
+    if "auth" in data and isinstance(data["auth"], dict):
+        auth_data = data["auth"]
+        config.auth = AuthConfig(
+            type=auth_data.get("type", "bearer"),
+            token=auth_data.get("token"),
+            username=auth_data.get("username"),
+            password=auth_data.get("password"),
+        )
+
+    # quality_gate 配置
+    if "quality_gate" in data and isinstance(data["quality_gate"], dict):
+        config.quality_gate = data["quality_gate"]
