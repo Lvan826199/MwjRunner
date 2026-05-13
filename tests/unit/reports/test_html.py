@@ -105,22 +105,30 @@ def test_html_reporter_escapes_xss_payload() -> None:
     )
     output = HtmlReporter().render(result)
 
-    assert "<script>" not in output
-    assert 'onerror="alert(1)"' not in output
-    assert "&lt;script&gt;" in output
+    # JSON 注入方案中，数据在 <script> 内以 JSON 形式存在
+    # XSS payload 中的 </script> 被转义为 <\/script>，不会破坏 HTML 结构
+    assert "</script>alert" not in output
+    # 用户可控数据在 JSON 中以字符串形式存在，由 JS 渲染时通过 esc() 函数转义
+    assert "alert" in output  # 数据在 JSON 中保留原始值（引号被 JSON 转义）
+    assert "<\\/script>" in output  # </script> 被转义
 
 
-def test_html_reporter_renders_failed_case_open() -> None:
+def test_html_reporter_renders_failed_case_data() -> None:
+    """失败用例数据正确注入到 HTML 报告中。"""
     output = HtmlReporter().render(_failed_result())
 
-    assert '<details class="case" open>' in output
+    # JSON 数据中包含失败用例信息
+    assert '"status":"failed"' in output.replace(" ", "").replace(": ", ":")
+    assert "json_path" in output
 
 
-def test_html_reporter_renders_passed_case_closed() -> None:
+def test_html_reporter_renders_passed_case_data() -> None:
+    """通过用例数据正确注入到 HTML 报告中。"""
     output = HtmlReporter().render(_result())
 
-    assert '<details class="case">' in output
-    assert '<details class="case" open>' not in output
+    # JSON 数据中包含通过用例信息
+    assert '"status":"passed"' in output.replace(" ", "").replace(": ", ":")
+    assert "健康检查用例" in output
 
 
 def test_html_reporter_writes_file(tmp_path) -> None:
