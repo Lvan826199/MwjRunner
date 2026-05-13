@@ -8,3 +8,4 @@ class Base(DeclarativeBase):
 
 
 from app.models.case import TestCase  # noqa: E402, F401
+from app.models.execution import Execution  # noqa: E402, F401

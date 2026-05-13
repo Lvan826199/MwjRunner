@@ -42,6 +42,10 @@ npm run dev
 | `/api/cases` | POST | 创建用例 |
 | `/api/cases/{id}` | PUT | 更新用例 |
 | `/api/cases/{id}` | DELETE | 删除用例 |
+| `/api/executions` | GET | 执行记录列表（支持 status 筛选） |
+| `/api/executions/{id}` | GET | 执行详情（含 stdout/stderr） |
+| `/api/executions` | POST | 触发执行（后台 asyncio 调用引擎） |
+| `/api/executions/{id}/report` | GET | 获取 JSON 报告 |
 | `/api/health` | GET | 健康检查 |
 
 前端页面：
@@ -79,7 +83,7 @@ platform/
 |------|------|------|
 | T40 平台骨架 | 已完成 | 前后端项目结构、Element Plus、SQLite |
 | T41 用例管理 | 已完成 | CRUD API + 前端页面 |
-| T42 执行触发 | 待开始 | asyncio 后台任务调用引擎 |
+| T42 执行触发 | 已完成 | asyncio 后台任务 + 执行记录 + 详情抽屉 |
 | T43 环境配置 | 待开始 | 环境 CRUD |
 | T44 分布式执行 | 待开始 | 多 Worker |
 | T45 Mock 服务 | 待开始 | 自动生成 Mock |
