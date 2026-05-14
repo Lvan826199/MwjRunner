@@ -27,6 +27,10 @@
           <el-icon><Setting /></el-icon>
           <span>环境配置</span>
         </el-menu-item>
+        <el-menu-item index="/workers">
+          <el-icon><Monitor /></el-icon>
+          <span>Worker 监控</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>

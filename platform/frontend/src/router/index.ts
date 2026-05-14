@@ -25,6 +25,11 @@ const routes = [
     name: 'Environments',
     component: () => import('../views/Environments.vue'),
   },
+  {
+    path: '/workers',
+    name: 'Workers',
+    component: () => import('../views/Workers.vue'),
+  },
 ]
 
 const router = createRouter({

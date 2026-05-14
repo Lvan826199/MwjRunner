@@ -116,4 +116,44 @@ export const environmentApi = {
   clone: (id: number, newName: string) => api.post<Environment>(`/environments/${id}/clone?new_name=${newName}`),
 }
 
+export interface Worker {
+  id: number
+  worker_id: string
+  name: string
+  host: string
+  port: number
+  status: string
+  max_concurrency: number
+  current_tasks: number
+  tags: string
+  last_heartbeat: string | null
+  registered_at: string | null
+}
+
+export interface TaskShard {
+  id: number
+  execution_id: number
+  worker_id: string
+  shard_index: number
+  total_shards: number
+  case_paths: string
+  status: string
+  exit_code: number | null
+  total_cases: number
+  passed_cases: number
+  failed_cases: number
+  error_cases: number
+  elapsed_ms: number
+  started_at: string | null
+  finished_at: string | null
+}
+
+export const workerApi = {
+  list: () => api.get<Worker[]>('/workers'),
+  remove: (workerId: string) => api.delete(`/workers/${workerId}`),
+  shards: (executionId: number) => api.get<TaskShard[]>(`/workers/shards/${executionId}`),
+  dispatch: (data: { case_ids?: number[]; base_url?: string; env_name?: string; tags?: string; shard_count?: number }) =>
+    api.post('/workers/dispatch', data),
+}
+
 export default api

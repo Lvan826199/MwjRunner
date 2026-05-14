@@ -52,6 +52,13 @@ npm run dev
 | `/api/environments/{id}` | PUT | 更新环境 |
 | `/api/environments/{id}` | DELETE | 删除环境 |
 | `/api/environments/{id}/clone` | POST | 克隆环境 |
+| `/api/workers` | GET | Worker 列表（自动标记超时离线） |
+| `/api/workers/register` | POST | Worker 注册（幂等） |
+| `/api/workers/heartbeat` | POST | Worker 心跳上报 |
+| `/api/workers/{worker_id}` | DELETE | 移除 Worker |
+| `/api/workers/dispatch` | POST | 分布式执行（自动分片分发） |
+| `/api/workers/shards/{execution_id}` | GET | 获取分片列表 |
+| `/api/workers/shards/report` | POST | 分片结果上报 |
 | `/api/health` | GET | 健康检查 |
 
 前端页面：
@@ -59,6 +66,7 @@ npm run dev
 - 用例管理：左侧目录树 + 右侧表格（搜索、筛选、新建、导入、编辑、执行、删除）
 - 执行记录：执行历史表格 + 详情抽屉（统计、stdout/stderr）
 - 环境配置：卡片网格 + 详情抽屉（认证、Headers、Variables）
+- Worker 监控：统计卡片 + 节点网格（状态/并发/心跳），10秒自动刷新
 
 ## 目录结构
 
@@ -91,7 +99,7 @@ platform/
 | T41 用例管理 | 已完成 | CRUD API + 前端页面 |
 | T42 执行触发 | 已完成 | asyncio 后台任务 + 执行记录 + 详情抽屉 |
 | T43 环境配置 | 已完成 | CRUD + 克隆 + 卡片网格 + 认证/Headers/Variables |
-| T44 分布式执行 | 待开始 | 多 Worker |
+| T44 分布式执行 | 已完成 | Worker 注册/心跳 + 任务分片 + 监控页面 |
 | T45 Mock 服务 | 待开始 | 自动生成 Mock |
 | T46 性能基准 | 待开始 | 响应时间趋势 |
 | T47 CI/CD | 待开始 | GitHub Actions 等 |
