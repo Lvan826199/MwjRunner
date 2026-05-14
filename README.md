@@ -177,6 +177,7 @@ doc/
 - `doc/技术方案.md`：架构设计
 - `doc/下一步计划.md`：任务管理
 - `doc/平台接入指南.md`：CI/CD 平台接入
+- `doc/部署手册.md`：生产环境部署指南
 
 ## 开发测试
 
@@ -196,7 +197,7 @@ uv run ruff format .
 - M3 调度能力 ✅
 - M4 可扩展能力 ✅
 - M5 生态集成 ✅
-- M6 平台化（进行中）— Vue 3 + Element Plus + FastAPI + SQLite
+- M6 平台化 ✅ — Vue 3 + Element Plus + FastAPI + SQLite（T40-T48 全部完成）
 
 ## 平台（M6）
 
