@@ -66,6 +66,10 @@ npm run dev
 | `/api/mocks/{id}` | DELETE | 删除 Mock 规则 |
 | `/api/mocks/generate` | POST | 从用例自动生成 Mock 规则 |
 | `/api/mocks/{id}/reset-hits` | POST | 重置命中计数 |
+| `/api/benchmarks` | GET | 压测记录列表 |
+| `/api/benchmarks/{id}` | GET | 压测详情 |
+| `/api/benchmarks` | POST | 创建并启动压测 |
+| `/api/benchmarks/{id}` | DELETE | 删除压测记录 |
 | `/api/health` | GET | 健康检查 |
 
 前端页面：
@@ -75,6 +79,7 @@ npm run dev
 - 环境配置：卡片网格 + 详情抽屉（认证、Headers、Variables）
 - Worker 监控：统计卡片 + 节点网格（状态/并发/心跳），10秒自动刷新
 - Mock 服务：规则表格（方法/路径/状态码/命中数）+ 新建/编辑抽屉
+- 性能压测：压测记录表格 + 新建对话框 + 详情抽屉（延迟分布/错误分布）
 
 ## 目录结构
 
@@ -109,7 +114,8 @@ platform/
 | T43 环境配置 | 已完成 | CRUD + 克隆 + 卡片网格 + 认证/Headers/Variables |
 | T44 分布式执行 | 已完成 | Worker 注册/心跳 + 任务分片 + 监控页面 |
 | T45 Mock 服务 | 已完成 | 规则 CRUD + 用例自动生成 + 命中计数 + 管理页面 |
-| T46 性能基准 | 待开始 | 压测 |
+| T46 性能基准 | 已完成 | 并发压测 + P50/P90/P95/P99 + RPS + 错误分布 |
+| T47 CI/CD | 待开始 | 集成插件 |
 | T46 性能基准 | 待开始 | 响应时间趋势 |
 | T47 CI/CD | 待开始 | GitHub Actions 等 |
 | T48 多租户 | 待开始 | JWT + 权限 |

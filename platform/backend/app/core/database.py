@@ -8,6 +8,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+async_session_factory = async_session  # alias for background tasks
 
 
 async def init_db():

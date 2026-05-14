@@ -35,6 +35,10 @@
           <el-icon><Connection /></el-icon>
           <span>Mock 服务</span>
         </el-menu-item>
+        <el-menu-item index="/benchmarks">
+          <el-icon><TrendCharts /></el-icon>
+          <span>性能压测</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>

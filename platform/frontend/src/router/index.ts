@@ -35,6 +35,11 @@ const routes = [
     name: 'Mocks',
     component: () => import('../views/Mocks.vue'),
   },
+  {
+    path: '/benchmarks',
+    name: 'Benchmarks',
+    component: () => import('../views/Benchmarks.vue'),
+  },
 ]
 
 const router = createRouter({

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.benchmarks import router as benchmarks_router
 from app.api.cases import router as cases_router
 from app.api.environments import router as environments_router
 from app.api.executions import router as executions_router
@@ -35,6 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(benchmarks_router)
 app.include_router(cases_router)
 app.include_router(environments_router)
 app.include_router(executions_router)

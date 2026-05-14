@@ -201,4 +201,51 @@ export const mockApi = {
   resetHits: (id: number) => api.post(`/mocks/${id}/reset-hits`),
 }
 
+export interface Benchmark {
+  id: number
+  name: string
+  target_url: string
+  method: string
+  headers: string
+  body: string
+  concurrency: number
+  total_requests: number
+  duration_seconds: number
+  status: string
+  total_sent: number
+  success_count: number
+  fail_count: number
+  avg_latency_ms: number
+  p50_latency_ms: number
+  p90_latency_ms: number
+  p95_latency_ms: number
+  p99_latency_ms: number
+  min_latency_ms: number
+  max_latency_ms: number
+  rps: number
+  elapsed_ms: number
+  error_distribution: string
+  started_at: string | null
+  finished_at: string | null
+  created_at: string | null
+}
+
+export interface BenchmarkCreate {
+  name: string
+  target_url: string
+  method?: string
+  headers?: string
+  body?: string
+  concurrency?: number
+  total_requests?: number
+  duration_seconds?: number
+}
+
+export const benchmarkApi = {
+  list: () => api.get<Benchmark[]>('/benchmarks'),
+  get: (id: number) => api.get<Benchmark>(`/benchmarks/${id}`),
+  create: (data: BenchmarkCreate) => api.post<Benchmark>('/benchmarks', data),
+  delete: (id: number) => api.delete(`/benchmarks/${id}`),
+}
+
 export default api
