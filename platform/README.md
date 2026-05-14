@@ -78,6 +78,17 @@ npm run dev
 | `/api/pipelines/{id}/trigger` | POST | 触发 Pipeline 执行 |
 | `/api/pipelines/{id}/runs` | GET | Pipeline 执行记录 |
 | `/api/pipelines/{id}/badge` | GET | 通过率 SVG 徽章 |
+| `/api/auth/login` | POST | 用户登录 |
+| `/api/auth/logout` | POST | 用户登出 |
+| `/api/auth/me` | GET | 当前用户信息 |
+| `/api/users` | GET | 用户列表 |
+| `/api/users` | POST | 创建用户 |
+| `/api/users/{id}` | PUT | 更新用户 |
+| `/api/users/{id}` | DELETE | 删除用户 |
+| `/api/teams` | GET | 团队列表 |
+| `/api/teams` | POST | 创建团队 |
+| `/api/teams/{id}` | PUT | 更新团队 |
+| `/api/teams/{id}` | DELETE | 删除团队 |
 | `/api/health` | GET | 健康检查 |
 
 前端页面：
@@ -89,6 +100,7 @@ npm run dev
 - Mock 服务：规则表格（方法/路径/状态码/命中数）+ 新建/编辑抽屉
 - 性能压测：压测记录表格 + 新建对话框 + 详情抽屉（延迟分布/错误分布）
 - CI/CD：Pipeline 卡片网格 + 触发执行 + 执行记录抽屉 + SVG 徽章
+- 用户权限：用户表格 + 团队卡片网格 + Tab 切换 + 认证登录
 
 ## 目录结构
 
@@ -125,7 +137,7 @@ platform/
 | T45 Mock 服务 | 已完成 | 规则 CRUD + 用例自动生成 + 命中计数 + 管理页面 |
 | T46 性能基准 | 已完成 | 并发压测 + P50/P90/P95/P99 + RPS + 错误分布 |
 | T47 CI/CD | 已完成 | Pipeline CRUD + 触发 + 执行记录 + SVG 徽章 |
-| T48 多租户 | 待开始 | 权限管理 |
+| T48 多租户 | 已完成 | 用户认证 + 角色权限 + 团队管理 |
 | T46 性能基准 | 待开始 | 响应时间趋势 |
 | T47 CI/CD | 待开始 | GitHub Actions 等 |
 | T48 多租户 | 待开始 | JWT + 权限 |

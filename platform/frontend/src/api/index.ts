@@ -312,4 +312,47 @@ export const pipelineApi = {
   runs: (id: number) => api.get<PipelineRun[]>(`/pipelines/${id}/runs`),
 }
 
+export interface UserInfo {
+  id: number
+  username: string
+  display_name: string
+  email: string
+  role: string
+  team_id: number | null
+  is_active: number
+  last_login_at: string | null
+  created_at: string | null
+}
+
+export interface TeamInfo {
+  id: number
+  name: string
+  description: string
+  max_members: number
+  created_at: string | null
+}
+
+export const authApi = {
+  login: (data: { username: string; password: string }) => api.post<{ token: string; user: UserInfo }>('/auth/login', data),
+  logout: () => api.post('/auth/logout'),
+  me: () => api.get<UserInfo>('/auth/me'),
+}
+
+export const userApi = {
+  list: () => api.get<UserInfo[]>('/users'),
+  create: (data: { username: string; password: string; display_name?: string; email?: string; role?: string; team_id?: number }) =>
+    api.post<UserInfo>('/users', data),
+  update: (id: number, data: Partial<{ display_name: string; email: string; role: string; team_id: number; is_active: number }>) =>
+    api.put<UserInfo>(`/users/${id}`, data),
+  delete: (id: number) => api.delete(`/users/${id}`),
+}
+
+export const teamApi = {
+  list: () => api.get<TeamInfo[]>('/teams'),
+  create: (data: { name: string; description?: string; max_members?: number }) => api.post<TeamInfo>('/teams', data),
+  update: (id: number, data: Partial<{ name: string; description: string; max_members: number }>) =>
+    api.put<TeamInfo>(`/teams/${id}`, data),
+  delete: (id: number) => api.delete(`/teams/${id}`),
+}
+
 export default api

@@ -13,4 +13,5 @@ from app.models.environment import Environment  # noqa: E402, F401
 from app.models.execution import Execution  # noqa: E402, F401
 from app.models.mock import MockRule  # noqa: E402, F401
 from app.models.pipeline import Pipeline, PipelineRun  # noqa: E402, F401
+from app.models.user import Team, User  # noqa: E402, F401
 from app.models.worker import TaskShard, Worker  # noqa: E402, F401

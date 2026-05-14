@@ -45,6 +45,11 @@ const routes = [
     name: 'Pipelines',
     component: () => import('../views/Pipelines.vue'),
   },
+  {
+    path: '/users',
+    name: 'Users',
+    component: () => import('../views/Users.vue'),
+  },
 ]
 
 const router = createRouter({

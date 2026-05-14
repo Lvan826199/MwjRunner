@@ -43,6 +43,10 @@
           <el-icon><SetUp /></el-icon>
           <span>CI/CD</span>
         </el-menu-item>
+        <el-menu-item index="/users">
+          <el-icon><User /></el-icon>
+          <span>用户权限</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
