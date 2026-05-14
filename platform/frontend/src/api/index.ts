@@ -75,4 +75,45 @@ export const executionApi = {
   report: (id: number) => api.get(`/executions/${id}/report`),
 }
 
+export interface Environment {
+  id: number
+  name: string
+  label: string
+  base_url: string
+  timeout: number
+  auth_type: string
+  auth_token: string
+  auth_username: string
+  auth_password: string
+  headers: string
+  variables: string
+  description: string
+  is_active: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface EnvironmentCreate {
+  name: string
+  label?: string
+  base_url?: string
+  timeout?: number
+  auth_type?: string
+  auth_token?: string
+  auth_username?: string
+  auth_password?: string
+  headers?: string
+  variables?: string
+  description?: string
+}
+
+export const environmentApi = {
+  list: () => api.get<Environment[]>('/environments'),
+  get: (id: number) => api.get<Environment>(`/environments/${id}`),
+  create: (data: EnvironmentCreate) => api.post<Environment>('/environments', data),
+  update: (id: number, data: Partial<EnvironmentCreate>) => api.put<Environment>(`/environments/${id}`, data),
+  delete: (id: number) => api.delete(`/environments/${id}`),
+  clone: (id: number, newName: string) => api.post<Environment>(`/environments/${id}/clone?new_name=${newName}`),
+}
+
 export default api

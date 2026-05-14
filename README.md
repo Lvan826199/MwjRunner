@@ -202,4 +202,4 @@ uv run ruff format .
 
 `platform/` 目录为独立的 Web 管理平台，与引擎完全解耦。详见 `platform/README.md`。
 
-当前已完成：用例管理 CRUD（T40-T41）。开发中：执行触发（T42）。
+当前已完成：用例管理、执行触发、环境配置（T40-T43）。

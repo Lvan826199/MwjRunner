@@ -46,13 +46,19 @@ npm run dev
 | `/api/executions/{id}` | GET | 执行详情（含 stdout/stderr） |
 | `/api/executions` | POST | 触发执行（后台 asyncio 调用引擎） |
 | `/api/executions/{id}/report` | GET | 获取 JSON 报告 |
+| `/api/environments` | GET | 环境列表 |
+| `/api/environments/{id}` | GET | 环境详情 |
+| `/api/environments` | POST | 创建环境 |
+| `/api/environments/{id}` | PUT | 更新环境 |
+| `/api/environments/{id}` | DELETE | 删除环境 |
+| `/api/environments/{id}/clone` | POST | 克隆环境 |
 | `/api/health` | GET | 健康检查 |
 
 前端页面：
 - 仪表盘：统计卡片（用例总数、今日执行、通过率、环境数）
 - 用例管理：左侧目录树 + 右侧表格（搜索、筛选、新建、导入、编辑、执行、删除）
-- 执行记录：执行历史列表（待实现）
-- 环境配置：环境管理（待实现）
+- 执行记录：执行历史表格 + 详情抽屉（统计、stdout/stderr）
+- 环境配置：卡片网格 + 详情抽屉（认证、Headers、Variables）
 
 ## 目录结构
 
@@ -84,7 +90,7 @@ platform/
 | T40 平台骨架 | 已完成 | 前后端项目结构、Element Plus、SQLite |
 | T41 用例管理 | 已完成 | CRUD API + 前端页面 |
 | T42 执行触发 | 已完成 | asyncio 后台任务 + 执行记录 + 详情抽屉 |
-| T43 环境配置 | 待开始 | 环境 CRUD |
+| T43 环境配置 | 已完成 | CRUD + 克隆 + 卡片网格 + 认证/Headers/Variables |
 | T44 分布式执行 | 待开始 | 多 Worker |
 | T45 Mock 服务 | 待开始 | 自动生成 Mock |
 | T46 性能基准 | 待开始 | 响应时间趋势 |
