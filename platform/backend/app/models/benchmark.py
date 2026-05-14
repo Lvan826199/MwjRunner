@@ -41,6 +41,7 @@ class Benchmark(Base):
     elapsed_ms = Column(Float, default=0.0)
     # 错误分布
     error_distribution = Column(Text, default="{}")  # {"timeout": 5, "500": 3}
+    team_id = Column(Integer, nullable=True)
     # 时间
     started_at = Column(DateTime, nullable=True)
     finished_at = Column(DateTime, nullable=True)

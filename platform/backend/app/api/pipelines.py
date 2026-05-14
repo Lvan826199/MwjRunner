@@ -9,8 +9,11 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.users import get_current_user
 from app.core.database import get_db
+from app.core.permissions import check_resource_access, team_filter
 from app.models.pipeline import Pipeline, PipelineRun
+from app.models.user import User
 from app.schemas.pipeline import (
     PipelineCreate,
     PipelineResponse,
@@ -23,25 +26,25 @@ router = APIRouter(prefix="/api/pipelines", tags=["CI/CD Pipeline"])
 
 
 @router.get("", response_model=list[PipelineResponse])
-async def list_pipelines(db: AsyncSession = Depends(get_db)):
-    """获取 Pipeline 列表。"""
-    result = await db.execute(select(Pipeline).order_by(Pipeline.id.desc()))
+async def list_pipelines(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    """获取 Pipeline 列表（团队隔离）。"""
+    query = select(Pipeline).order_by(Pipeline.id.desc())
+    query = team_filter(query, Pipeline, user)
+    result = await db.execute(query)
     return result.scalars().all()
 
 
 @router.get("/{pipeline_id}", response_model=PipelineResponse)
-async def get_pipeline(pipeline_id: int, db: AsyncSession = Depends(get_db)):
+async def get_pipeline(pipeline_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取 Pipeline 详情。"""
-    p = await db.get(Pipeline, pipeline_id)
-    if not p:
-        raise HTTPException(status_code=404, detail="Pipeline 不存在")
+    p = await check_resource_access(db, Pipeline, pipeline_id, user)
     return p
 
 
 @router.post("", response_model=PipelineResponse, status_code=201)
-async def create_pipeline(data: PipelineCreate, db: AsyncSession = Depends(get_db)):
+async def create_pipeline(data: PipelineCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """创建 Pipeline。"""
-    p = Pipeline(**data.model_dump())
+    p = Pipeline(**data.model_dump(), team_id=user.team_id)
     db.add(p)
     await db.commit()
     await db.refresh(p)
@@ -49,11 +52,9 @@ async def create_pipeline(data: PipelineCreate, db: AsyncSession = Depends(get_d
 
 
 @router.put("/{pipeline_id}", response_model=PipelineResponse)
-async def update_pipeline(pipeline_id: int, data: PipelineUpdate, db: AsyncSession = Depends(get_db)):
+async def update_pipeline(pipeline_id: int, data: PipelineUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """更新 Pipeline。"""
-    p = await db.get(Pipeline, pipeline_id)
-    if not p:
-        raise HTTPException(status_code=404, detail="Pipeline 不存在")
+    p = await check_resource_access(db, Pipeline, pipeline_id, user)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(p, field, value)
     await db.commit()
@@ -62,21 +63,17 @@ async def update_pipeline(pipeline_id: int, data: PipelineUpdate, db: AsyncSessi
 
 
 @router.delete("/{pipeline_id}", status_code=204)
-async def delete_pipeline(pipeline_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_pipeline(pipeline_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """删除 Pipeline。"""
-    p = await db.get(Pipeline, pipeline_id)
-    if not p:
-        raise HTTPException(status_code=404, detail="Pipeline 不存在")
+    p = await check_resource_access(db, Pipeline, pipeline_id, user)
     await db.delete(p)
     await db.commit()
 
 
 @router.post("/{pipeline_id}/trigger", response_model=PipelineRunResponse, status_code=201)
-async def trigger_pipeline(pipeline_id: int, data: PipelineTrigger, db: AsyncSession = Depends(get_db)):
+async def trigger_pipeline(pipeline_id: int, data: PipelineTrigger, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """触发 Pipeline 执行。"""
-    p = await db.get(Pipeline, pipeline_id)
-    if not p:
-        raise HTTPException(status_code=404, detail="Pipeline 不存在")
+    p = await check_resource_access(db, Pipeline, pipeline_id, user)
     if not p.is_active:
         raise HTTPException(status_code=400, detail="Pipeline 已停用")
 
@@ -96,8 +93,9 @@ async def trigger_pipeline(pipeline_id: int, data: PipelineTrigger, db: AsyncSes
 
 
 @router.get("/{pipeline_id}/runs", response_model=list[PipelineRunResponse])
-async def list_runs(pipeline_id: int, db: AsyncSession = Depends(get_db)):
+async def list_runs(pipeline_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取 Pipeline 执行记录。"""
+    await check_resource_access(db, Pipeline, pipeline_id, user)
     result = await db.execute(
         select(PipelineRun).where(PipelineRun.pipeline_id == pipeline_id).order_by(PipelineRun.id.desc())
     )
@@ -106,7 +104,7 @@ async def list_runs(pipeline_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("/{pipeline_id}/badge")
 async def get_badge(pipeline_id: int, db: AsyncSession = Depends(get_db)):
-    """获取通过率徽章（SVG）。"""
+    """获取通过率徽章（SVG）— 公开接口，无需认证。"""
     p = await db.get(Pipeline, pipeline_id)
     if not p:
         raise HTTPException(status_code=404, detail="Pipeline 不存在")

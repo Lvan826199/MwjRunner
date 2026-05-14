@@ -13,11 +13,15 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.users import get_current_user
 from app.core import STORAGE_DIR
 from app.core.database import async_session, get_db
+from app.core.permissions import check_resource_access, team_filter
 from app.models.case import TestCase
 from app.models.execution import Execution
+from app.models.user import User
 from app.schemas.execution import ExecutionCreate, ExecutionListResponse, ExecutionResponse
+from app.api.ws import notify_execution_created, notify_execution_update
 
 router = APIRouter(prefix="/api/executions", tags=["执行管理"])
 
@@ -27,9 +31,11 @@ async def list_executions(
     status: str | None = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    """获取执行记录列表。"""
+    """获取执行记录列表（团队隔离）。"""
     query = select(Execution).order_by(Execution.started_at.desc()).limit(limit)
+    query = team_filter(query, Execution, user)
     if status:
         query = query.where(Execution.status == status)
     result = await db.execute(query)
@@ -37,11 +43,9 @@ async def list_executions(
 
 
 @router.get("/{execution_id}", response_model=ExecutionResponse)
-async def get_execution(execution_id: int, db: AsyncSession = Depends(get_db)):
+async def get_execution(execution_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取执行详情。"""
-    execution = await db.get(Execution, execution_id)
-    if not execution:
-        raise HTTPException(status_code=404, detail="执行记录不存在")
+    execution = await check_resource_access(db, Execution, execution_id, user)
     return execution
 
 
@@ -50,6 +54,7 @@ async def create_execution(
     data: ExecutionCreate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """触发用例执行。"""
     # 确定用例路径
@@ -81,6 +86,7 @@ async def create_execution(
         tags=data.tags,
         workers=data.workers,
         report_dir=report_dir,
+        team_id=user.team_id,
     )
     db.add(execution)
     await db.commit()
@@ -99,15 +105,16 @@ async def create_execution(
         report_dir=report_dir,
     )
 
+    # WebSocket 通知
+    background_tasks.add_task(notify_execution_created, execution.id, execution.case_name, user.team_id)
+
     return execution
 
 
 @router.get("/{execution_id}/report")
-async def get_execution_report(execution_id: int, db: AsyncSession = Depends(get_db)):
+async def get_execution_report(execution_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取执行的 JSON 报告。"""
-    execution = await db.get(Execution, execution_id)
-    if not execution:
-        raise HTTPException(status_code=404, detail="执行记录不存在")
+    execution = await check_resource_access(db, Execution, execution_id, user)
     if not execution.report_dir:
         raise HTTPException(status_code=404, detail="报告目录未配置")
 
@@ -200,6 +207,14 @@ async def _run_engine_task(
             execution.failed_assertions = summary.get("failed_assertions", 0)
             execution.elapsed_ms = summary.get("elapsed_ms", 0.0)
             await db.commit()
+
+            # WebSocket 通知执行完成
+            await notify_execution_update(
+                execution_id, status, execution.team_id,
+                passed_cases=execution.passed_cases,
+                failed_cases=execution.failed_cases,
+                elapsed_ms=execution.elapsed_ms,
+            )
 
     # 更新用例状态
     if summary and execution and execution.case_id:

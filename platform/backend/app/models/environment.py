@@ -31,5 +31,6 @@ class Environment(Base):
     description = Column(Text, default="")
     # 状态
     is_active = Column(Integer, default=1)
+    team_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

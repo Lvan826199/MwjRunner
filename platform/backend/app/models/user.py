@@ -35,3 +35,16 @@ class User(Base):
     is_active = Column(Integer, default=1)
     last_login_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class RefreshToken(Base):
+    """Refresh Token 持久化存储。"""
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False)
+    jti = Column(String(64), unique=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    revoked = Column(Integer, default=0)
+    created_at = Column(DateTime, server_default=func.now())

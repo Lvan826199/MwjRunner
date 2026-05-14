@@ -13,25 +13,28 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.api.users import get_current_user
+from app.core.permissions import check_resource_access, team_filter
 from app.models.benchmark import Benchmark
+from app.models.user import User
 from app.schemas.benchmark import BenchmarkCreate, BenchmarkResponse
 
 router = APIRouter(prefix="/api/benchmarks", tags=["性能基准"])
 
 
 @router.get("", response_model=list[BenchmarkResponse])
-async def list_benchmarks(db: AsyncSession = Depends(get_db)):
-    """获取压测记录列表。"""
-    result = await db.execute(select(Benchmark).order_by(Benchmark.id.desc()))
+async def list_benchmarks(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    """获取压测记录列表（团队隔离）。"""
+    query = select(Benchmark).order_by(Benchmark.id.desc())
+    query = team_filter(query, Benchmark, user)
+    result = await db.execute(query)
     return result.scalars().all()
 
 
 @router.get("/{bench_id}", response_model=BenchmarkResponse)
-async def get_benchmark(bench_id: int, db: AsyncSession = Depends(get_db)):
+async def get_benchmark(bench_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取压测详情。"""
-    bench = await db.get(Benchmark, bench_id)
-    if not bench:
-        raise HTTPException(status_code=404, detail="压测记录不存在")
+    bench = await check_resource_access(db, Benchmark, bench_id, user)
     return bench
 
 
@@ -40,9 +43,10 @@ async def create_benchmark(
     data: BenchmarkCreate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """创建并启动压测。"""
-    bench = Benchmark(**data.model_dump())
+    bench = Benchmark(**data.model_dump(), team_id=user.team_id)
     db.add(bench)
     await db.commit()
     await db.refresh(bench)
@@ -51,11 +55,9 @@ async def create_benchmark(
 
 
 @router.delete("/{bench_id}", status_code=204)
-async def delete_benchmark(bench_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_benchmark(bench_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """删除压测记录。"""
-    bench = await db.get(Benchmark, bench_id)
-    if not bench:
-        raise HTTPException(status_code=404, detail="压测记录不存在")
+    bench = await check_resource_access(db, Benchmark, bench_id, user)
     await db.delete(bench)
     await db.commit()
 

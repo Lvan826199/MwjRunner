@@ -1,5 +1,8 @@
 <template>
-  <el-container class="app-container">
+  <el-container class="app-container" v-if="route.path === '/login'">
+    <router-view />
+  </el-container>
+  <el-container class="app-container" v-else>
     <el-aside width="220px" class="app-aside">
       <div class="logo">
         <h2>MwjRunner</h2>
@@ -43,7 +46,7 @@
           <el-icon><SetUp /></el-icon>
           <span>CI/CD</span>
         </el-menu-item>
-        <el-menu-item index="/users">
+        <el-menu-item v-if="authStore.isAdmin" index="/users">
           <el-icon><User /></el-icon>
           <span>用户权限</span>
         </el-menu-item>
@@ -52,6 +55,11 @@
     <el-container>
       <el-header class="app-header">
         <span class="header-title">接口自动化测试平台</span>
+        <div class="header-user" v-if="authStore.user">
+          <el-tag size="small" :type="roleTagType">{{ authStore.user.role }}</el-tag>
+          <span class="user-name">{{ authStore.user.display_name || authStore.user.username }}</span>
+          <el-button text size="small" @click="authStore.logout()">退出</el-button>
+        </div>
       </el-header>
       <el-main>
         <router-view />
@@ -61,11 +69,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const activeMenu = computed(() => route.path)
+const roleTagType = computed(() => {
+  switch (authStore.user?.role) {
+    case 'admin': return 'danger'
+    case 'manager': return 'warning'
+    default: return 'info'
+  }
+})
+
+onMounted(() => {
+  authStore.initFromStorage()
+})
 </script>
 
 <style>
@@ -95,9 +116,19 @@ body {
   border-bottom: 1px solid #eee;
   display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 .header-title {
   font-size: 16px;
   font-weight: 500;
+}
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.user-name {
+  font-size: 14px;
+  color: #606266;
 }
 </style>

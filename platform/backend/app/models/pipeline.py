@@ -35,6 +35,7 @@ class Pipeline(Base):
     # 管理
     is_active = Column(Integer, default=1)
     description = Column(Text, default="")
+    team_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

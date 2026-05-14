@@ -38,6 +38,8 @@ class Execution(Base):
     # 日志
     stdout = Column(Text, default="")
     stderr = Column(Text, default="")
+    # 权限
+    team_id = Column(Integer, nullable=True)
     # 时间
     started_at = Column(DateTime, server_default=func.now())
     finished_at = Column(DateTime, nullable=True)

@@ -6,8 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.users import get_current_user
 from app.core.database import get_db
+from app.core.permissions import check_resource_access, team_filter
 from app.models.case import TestCase
+from app.models.user import User
 from app.schemas.case import CaseCreate, CaseListResponse, CaseResponse, CaseUpdate, FolderNode
 
 router = APIRouter(prefix="/api/cases", tags=["用例管理"])
@@ -20,9 +23,11 @@ async def list_cases(
     priority: str | None = None,
     search: str | None = None,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    """获取用例列表。"""
+    """获取用例列表（团队隔离）。"""
     query = select(TestCase).order_by(TestCase.folder, TestCase.name)
+    query = team_filter(query, TestCase, user)
     if folder:
         query = query.where(TestCase.folder == folder)
     if tags:
@@ -36,12 +41,13 @@ async def list_cases(
 
 
 @router.get("/folders", response_model=list[FolderNode])
-async def list_folders(db: AsyncSession = Depends(get_db)):
+async def list_folders(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取用例目录树。"""
-    result = await db.execute(select(TestCase.folder).distinct())
+    query = select(TestCase.folder).distinct()
+    query = team_filter(query, TestCase, user)
+    result = await db.execute(query)
     folders = sorted(set(row[0] for row in result.all()))
 
-    # 构建树结构
     root_children: list[FolderNode] = []
     for folder_path in folders:
         parts = [p for p in folder_path.strip("/").split("/") if p]
@@ -50,16 +56,14 @@ async def list_folders(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{case_id}", response_model=CaseResponse)
-async def get_case(case_id: int, db: AsyncSession = Depends(get_db)):
+async def get_case(case_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取用例详情。"""
-    case = await db.get(TestCase, case_id)
-    if not case:
-        raise HTTPException(status_code=404, detail="用例不存在")
+    case = await check_resource_access(db, TestCase, case_id, user)
     return case
 
 
 @router.post("", response_model=CaseResponse, status_code=201)
-async def create_case(data: CaseCreate, db: AsyncSession = Depends(get_db)):
+async def create_case(data: CaseCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """创建用例。"""
     filename = _safe_filename(data.name) + ".yaml"
     case = TestCase(
@@ -69,6 +73,7 @@ async def create_case(data: CaseCreate, db: AsyncSession = Depends(get_db)):
         tags=data.tags,
         priority=data.priority,
         content=data.content or _default_content(data.name),
+        team_id=user.team_id,
     )
     db.add(case)
     await db.commit()
@@ -77,11 +82,9 @@ async def create_case(data: CaseCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{case_id}", response_model=CaseResponse)
-async def update_case(case_id: int, data: CaseUpdate, db: AsyncSession = Depends(get_db)):
+async def update_case(case_id: int, data: CaseUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """更新用例。"""
-    case = await db.get(TestCase, case_id)
-    if not case:
-        raise HTTPException(status_code=404, detail="用例不存在")
+    case = await check_resource_access(db, TestCase, case_id, user)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(case, field, value)
     await db.commit()
@@ -90,11 +93,9 @@ async def update_case(case_id: int, data: CaseUpdate, db: AsyncSession = Depends
 
 
 @router.delete("/{case_id}", status_code=204)
-async def delete_case(case_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_case(case_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """删除用例。"""
-    case = await db.get(TestCase, case_id)
-    if not case:
-        raise HTTPException(status_code=404, detail="用例不存在")
+    case = await check_resource_access(db, TestCase, case_id, user)
     await db.delete(case)
     await db.commit()
 

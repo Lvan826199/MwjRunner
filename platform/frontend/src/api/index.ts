@@ -5,6 +5,85 @@ const api = axios.create({
   timeout: 30000,
 })
 
+// Token 管理
+const TOKEN_KEY = 'mwj_access_token'
+const REFRESH_KEY = 'mwj_refresh_token'
+
+export function getAccessToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_KEY)
+}
+
+export function setTokens(access: string, refresh: string) {
+  localStorage.setItem(TOKEN_KEY, access)
+  localStorage.setItem(REFRESH_KEY, refresh)
+}
+
+export function clearTokens() {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(REFRESH_KEY)
+}
+
+// 请求拦截器：自动附加 Token
+api.interceptors.request.use((config) => {
+  const token = getAccessToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// 响应拦截器：401 自动刷新
+let isRefreshing = false
+let pendingRequests: Array<(token: string) => void> = []
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      const refreshToken = getRefreshToken()
+      if (!refreshToken) {
+        clearTokens()
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          pendingRequests.push((token: string) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`
+            resolve(api(originalRequest))
+          })
+        })
+      }
+
+      originalRequest._retry = true
+      isRefreshing = true
+
+      try {
+        const res = await axios.post('/api/auth/refresh', { refresh_token: refreshToken })
+        const { access_token, refresh_token: newRefresh } = res.data
+        setTokens(access_token, newRefresh)
+        pendingRequests.forEach((cb) => cb(access_token))
+        pendingRequests = []
+        originalRequest.headers.Authorization = `Bearer ${access_token}`
+        return api(originalRequest)
+      } catch {
+        clearTokens()
+        window.location.href = '/login'
+        return Promise.reject(error)
+      } finally {
+        isRefreshing = false
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
 export interface TestCase {
   id: number
   name: string
@@ -333,8 +412,14 @@ export interface TeamInfo {
 }
 
 export const authApi = {
-  login: (data: { username: string; password: string }) => api.post<{ token: string; user: UserInfo }>('/auth/login', data),
+  login: (data: { username: string; password: string }) =>
+    api.post<{ access_token: string; refresh_token: string; user: UserInfo }>('/auth/login', data),
+  refresh: (refresh_token: string) =>
+    api.post<{ access_token: string; refresh_token: string }>('/auth/refresh', { refresh_token }),
   logout: () => api.post('/auth/logout'),
+  logoutAll: () => api.post('/auth/logout-all'),
+  changePassword: (data: { old_password: string; new_password: string }) =>
+    api.post('/auth/change-password', data),
   me: () => api.get<UserInfo>('/auth/me'),
 }
 
@@ -353,6 +438,12 @@ export const teamApi = {
   update: (id: number, data: Partial<{ name: string; description: string; max_members: number }>) =>
     api.put<TeamInfo>(`/teams/${id}`, data),
   delete: (id: number) => api.delete(`/teams/${id}`),
+}
+
+export const statsApi = {
+  overview: (days?: number) => api.get('/stats/overview', { params: { days } }),
+  trend: (days?: number) => api.get('/stats/trend', { params: { days } }),
+  tags: () => api.get('/stats/tags'),
 }
 
 export default api

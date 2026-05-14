@@ -22,5 +22,6 @@ class TestCase(Base):
     status = Column(String(20), default="idle")  # idle, passed, failed, error
     last_run_at = Column(DateTime, nullable=True)
     content = Column(Text, nullable=False, default="")
+    team_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
