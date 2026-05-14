@@ -156,4 +156,49 @@ export const workerApi = {
     api.post('/workers/dispatch', data),
 }
 
+export interface MockRule {
+  id: number
+  name: string
+  method: string
+  path: string
+  match_headers: string
+  match_query: string
+  match_body: string
+  response_status: number
+  response_headers: string
+  response_body: string
+  response_delay_ms: number
+  priority: number
+  is_active: number
+  hit_count: number
+  description: string
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface MockRuleCreate {
+  name: string
+  method?: string
+  path: string
+  match_headers?: string
+  match_query?: string
+  match_body?: string
+  response_status?: number
+  response_headers?: string
+  response_body?: string
+  response_delay_ms?: number
+  priority?: number
+  description?: string
+}
+
+export const mockApi = {
+  list: () => api.get<MockRule[]>('/mocks'),
+  get: (id: number) => api.get<MockRule>(`/mocks/${id}`),
+  create: (data: MockRuleCreate) => api.post<MockRule>('/mocks', data),
+  update: (id: number, data: Partial<MockRuleCreate>) => api.put<MockRule>(`/mocks/${id}`, data),
+  delete: (id: number) => api.delete(`/mocks/${id}`),
+  generate: (caseId: number) => api.post<MockRule[]>('/mocks/generate', { case_id: caseId }),
+  resetHits: (id: number) => api.post(`/mocks/${id}/reset-hits`),
+}
+
 export default api

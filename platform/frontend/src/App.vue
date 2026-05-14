@@ -31,6 +31,10 @@
           <el-icon><Monitor /></el-icon>
           <span>Worker 监控</span>
         </el-menu-item>
+        <el-menu-item index="/mocks">
+          <el-icon><Connection /></el-icon>
+          <span>Mock 服务</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>

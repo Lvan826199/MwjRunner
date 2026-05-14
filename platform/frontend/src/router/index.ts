@@ -30,6 +30,11 @@ const routes = [
     name: 'Workers',
     component: () => import('../views/Workers.vue'),
   },
+  {
+    path: '/mocks',
+    name: 'Mocks',
+    component: () => import('../views/Mocks.vue'),
+  },
 ]
 
 const router = createRouter({
