@@ -10,6 +10,7 @@ from app.api.cases import router as cases_router
 from app.api.environments import router as environments_router
 from app.api.executions import router as executions_router
 from app.api.mocks import router as mocks_router
+from app.api.pipelines import router as pipelines_router
 from app.api.workers import router as workers_router
 from app.core.database import init_db
 
@@ -41,6 +42,7 @@ app.include_router(cases_router)
 app.include_router(environments_router)
 app.include_router(executions_router)
 app.include_router(mocks_router)
+app.include_router(pipelines_router)
 app.include_router(workers_router)
 
 

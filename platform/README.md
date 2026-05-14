@@ -70,6 +70,14 @@ npm run dev
 | `/api/benchmarks/{id}` | GET | 压测详情 |
 | `/api/benchmarks` | POST | 创建并启动压测 |
 | `/api/benchmarks/{id}` | DELETE | 删除压测记录 |
+| `/api/pipelines` | GET | Pipeline 列表 |
+| `/api/pipelines/{id}` | GET | Pipeline 详情 |
+| `/api/pipelines` | POST | 创建 Pipeline |
+| `/api/pipelines/{id}` | PUT | 更新 Pipeline |
+| `/api/pipelines/{id}` | DELETE | 删除 Pipeline |
+| `/api/pipelines/{id}/trigger` | POST | 触发 Pipeline 执行 |
+| `/api/pipelines/{id}/runs` | GET | Pipeline 执行记录 |
+| `/api/pipelines/{id}/badge` | GET | 通过率 SVG 徽章 |
 | `/api/health` | GET | 健康检查 |
 
 前端页面：
@@ -80,6 +88,7 @@ npm run dev
 - Worker 监控：统计卡片 + 节点网格（状态/并发/心跳），10秒自动刷新
 - Mock 服务：规则表格（方法/路径/状态码/命中数）+ 新建/编辑抽屉
 - 性能压测：压测记录表格 + 新建对话框 + 详情抽屉（延迟分布/错误分布）
+- CI/CD：Pipeline 卡片网格 + 触发执行 + 执行记录抽屉 + SVG 徽章
 
 ## 目录结构
 
@@ -115,7 +124,8 @@ platform/
 | T44 分布式执行 | 已完成 | Worker 注册/心跳 + 任务分片 + 监控页面 |
 | T45 Mock 服务 | 已完成 | 规则 CRUD + 用例自动生成 + 命中计数 + 管理页面 |
 | T46 性能基准 | 已完成 | 并发压测 + P50/P90/P95/P99 + RPS + 错误分布 |
-| T47 CI/CD | 待开始 | 集成插件 |
+| T47 CI/CD | 已完成 | Pipeline CRUD + 触发 + 执行记录 + SVG 徽章 |
+| T48 多租户 | 待开始 | 权限管理 |
 | T46 性能基准 | 待开始 | 响应时间趋势 |
 | T47 CI/CD | 待开始 | GitHub Actions 等 |
 | T48 多租户 | 待开始 | JWT + 权限 |

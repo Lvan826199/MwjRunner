@@ -248,4 +248,68 @@ export const benchmarkApi = {
   delete: (id: number) => api.delete(`/benchmarks/${id}`),
 }
 
+export interface Pipeline {
+  id: number
+  name: string
+  platform: string
+  trigger_type: string
+  cron_expr: string
+  webhook_secret: string
+  case_filter_tags: string
+  env_name: string
+  base_url: string
+  notify_on_fail: number
+  notify_webhook: string
+  badge_enabled: number
+  last_status: string
+  last_run_at: string | null
+  is_active: number
+  description: string
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface PipelineCreate {
+  name: string
+  platform?: string
+  trigger_type?: string
+  cron_expr?: string
+  webhook_secret?: string
+  case_filter_tags?: string
+  env_name?: string
+  base_url?: string
+  notify_on_fail?: number
+  notify_webhook?: string
+  badge_enabled?: number
+  description?: string
+}
+
+export interface PipelineRun {
+  id: number
+  pipeline_id: number
+  trigger_source: string
+  commit_sha: string
+  branch: string
+  status: string
+  total_cases: number
+  passed_cases: number
+  failed_cases: number
+  elapsed_ms: number
+  execution_id: number | null
+  started_at: string | null
+  finished_at: string | null
+  created_at: string | null
+}
+
+export const pipelineApi = {
+  list: () => api.get<Pipeline[]>('/pipelines'),
+  get: (id: number) => api.get<Pipeline>(`/pipelines/${id}`),
+  create: (data: PipelineCreate) => api.post<Pipeline>('/pipelines', data),
+  update: (id: number, data: Partial<PipelineCreate>) => api.put<Pipeline>(`/pipelines/${id}`, data),
+  delete: (id: number) => api.delete(`/pipelines/${id}`),
+  trigger: (id: number, data?: { commit_sha?: string; branch?: string; trigger_source?: string }) =>
+    api.post<PipelineRun>(`/pipelines/${id}/trigger`, data || {}),
+  runs: (id: number) => api.get<PipelineRun[]>(`/pipelines/${id}/runs`),
+}
+
 export default api

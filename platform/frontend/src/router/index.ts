@@ -40,6 +40,11 @@ const routes = [
     name: 'Benchmarks',
     component: () => import('../views/Benchmarks.vue'),
   },
+  {
+    path: '/pipelines',
+    name: 'Pipelines',
+    component: () => import('../views/Pipelines.vue'),
+  },
 ]
 
 const router = createRouter({

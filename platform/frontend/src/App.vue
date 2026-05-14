@@ -39,6 +39,10 @@
           <el-icon><TrendCharts /></el-icon>
           <span>性能压测</span>
         </el-menu-item>
+        <el-menu-item index="/pipelines">
+          <el-icon><SetUp /></el-icon>
+          <span>CI/CD</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
