@@ -138,3 +138,15 @@ platform/
 | T46 性能基准 | 已完成 | 并发压测 + P50/P90/P95/P99 + RPS + 错误分布 |
 | T47 CI/CD | 已完成 | Pipeline CRUD + 触发 + 执行记录 + SVG 徽章 |
 | T48 多租户 | 已完成 | 用户认证 + 角色权限 + 团队管理 |
+| T49 JWT 认证 | 已完成 | PyJWT 双 Token + bcrypt + 黑名单 |
+| T50 数据权限隔离 | 已完成 | RBAC + team_id 过滤 + 资源鉴权 |
+| T51 前端登录守卫 | 已完成 | Pinia 认证 + 路由守卫 + Token 自动刷新 |
+| T52 仪表盘真实化 | 已完成 | 统计 API + ECharts 图表 |
+| T53 报告可视化 | 已完成 | 执行详情页 + 统计饼图 + 步骤表格 |
+| T54 WebSocket 推送 | 已完成 | 团队隔离广播 + 自动重连 + 心跳 |
+| T55 CI 模板生成 | 已完成 | GitHub Actions / GitLab CI / Jenkins |
+| T56 Webhook 触发 | 已完成 | GitHub/GitLab/通用 Webhook + 签名验证 |
+| T57 通知增强 | 已完成 | 钉钉/飞书/Slack/邮件 + 连通性测试 |
+| T58 gRPC 支持 | 已完成 | Unary + Streaming + Reflection |
+| T59 场景编排 | 已完成 | 多用例串联 + 变量传递 + 延迟控制 |
+| T60 性能基线 | 已完成 | 基线管理 + 对比 + 回归检测 |
