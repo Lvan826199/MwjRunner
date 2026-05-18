@@ -1,10 +1,54 @@
 # MwjRunner
 
-让接口自动化，像梦一样流畅执行。
-
-梦无矶·MwjRunner —— 接口自动化的执行引擎。
+**最简 YAML 写用例，最清晰的失败诊断，零配置跑进 CI。**
 
 Run APIs, Run Dreams.
+
+---
+
+### 为什么选 MwjRunner？
+
+**卖点一：业界最简的用例格式**
+
+不需要学框架 DSL、不需要写 fixture、不需要继承基类。一个 YAML 文件就是一个完整用例：
+
+```yaml
+name: 健康检查
+steps:
+  - name: 验证服务存活
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_path
+        path: $.status
+        expected: "ok"
+```
+
+对比其他方案需要 30+ 行配置代码，MwjRunner 只要 **声明你要什么**。
+
+**卖点二：失败了，一眼就知道哪里错**
+
+断言失败不再是一堆 traceback，而是结构化诊断——告诉你 **哪条路径、期望什么、实际拿到什么**：
+
+```
+失败或错误明细
+- 用户列表 / 校验返回数据: json_path 断言失败: path $.data.total 期望 10, 实际 0
+- 用户列表 / 校验响应时间: response_time 断言失败: 实际耗时 1523ms 超过阈值 1000ms
+- 登录 / 校验 token: json_path 断言失败: path $.token 期望 "abc", 实际 null
+```
+
+无需翻日志、无需加 print、无需猜测。**失败即诊断**。
+
+---
+
+```bash
+# 一行命令，零配置执行
+uv run mwjrunner run cases/ --base-url https://your-api.com --report console,json
+# 退出码：0=通过 1=断言失败 2=配置错误 3=引擎错误 4=质量门禁不通过
+```
 
 ## 项目定位
 
@@ -132,12 +176,43 @@ mwjrunner import swagger.json --format openapi --output cases/generated
 # 安装
 uv sync
 
+# 零依赖执行（使用公共 API，无需启动任何本地服务）
+uv run mwjrunner run examples/cases/quickstart_httpbin.yaml --base-url https://httpbin.org --report console
+```
+
+### 完整示例（使用本地 FastAPI 服务）
+
+```bash
 # 启动示例服务
 cd examples/api && uv sync && uv run uvicorn app.main:app --port 8000
 
-# 执行示例用例
-uv run mwjrunner run examples/cases/ --base-url http://127.0.0.1:8000 --report console,json,html
+# 执行全部示例用例
+cd ../.. && uv run mwjrunner run examples/cases/ --base-url http://127.0.0.1:8000 --report console,json,html
 ```
+
+## 1.0.0 版本范围
+
+**稳定能力（GA）：**
+
+- 核心 HTTP 执行引擎：YAML/JSON 用例加载、目录批量执行
+- 断言体系：status_code、json_path、body_contains、response_time、json_schema、regex、header、cookie
+- 变量渲染与提取：json_path、header、cookie、regex + 6 种内置函数
+- 数据驱动：inline、CSV、JSON
+- 调度：retry、fail-fast、并发执行、tags/priority 过滤、hooks
+- 环境配置、Bearer/Basic 认证注入
+- 报告：Console、JSON、HTML、执行历史趋势、报告插件接口
+- CLI：run、validate、init、import
+- 质量门禁（退出码 4）
+- Postman/OpenAPI 导入
+- 通知扩展（钉钉/企微/飞书/Slack/邮件）
+
+**实验性能力（Experimental）：**
+
+- WebSocket / gRPC 协议支持
+- OAuth2 流程（client_credentials / password）
+- Excel / SQL 数据源
+- Web 管理平台（platform/）
+- 场景编排、性能基线与回归检测
 
 ## 项目结构
 
@@ -172,7 +247,8 @@ doc/
 
 ## 文档
 
-- `doc/使用手册.md`：面向新手的完整使用手册
+- `doc/使用手册-入门篇.md`：安装、第一个用例、执行、断言、变量、报告
+- `doc/使用手册-进阶篇.md`：HTML 报告、数据驱动、并发、hooks、协议扩展、平台
 - `doc/需求规格说明书.md`：产品需求规格
 - `doc/技术方案.md`：架构设计
 - `doc/下一步计划.md`：任务管理

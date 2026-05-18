@@ -1,0 +1,30 @@
+name: Quick Start 验证
+tags: [quickstart, smoke]
+steps:
+  - name: GET 请求验证
+    request:
+      method: GET
+      url: /get
+      params:
+        hello: mwjrunner
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_path
+        path: $.args.hello
+        expected: mwjrunner
+
+  - name: POST 请求验证
+    request:
+      method: POST
+      url: /post
+      headers:
+        Content-Type: application/json
+      body:
+        message: "MwjRunner 1.0.0"
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_path
+        path: $.json.message
+        expected: "MwjRunner 1.0.0"
