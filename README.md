@@ -73,9 +73,9 @@ uv run mwjrunner run examples/cases/quickstart_httpbin.yaml --base-url https://h
 
 | 你想做什么 | 推荐阅读 |
 | --- | --- |
-| 第一次写接口用例 | `doc/使用手册-入门篇.md` |
-| 学习断言、变量、提取和报告 | `doc/使用手册-入门篇.md` |
-| 使用数据驱动、并发、hooks、质量门禁 | `doc/使用手册-进阶篇.md` |
+| 第一次写接口用例 | `doc/使用手册.md` |
+| 学习断言、变量、提取和报告 | `doc/使用手册.md` |
+| 使用数据驱动、并发、hooks、质量门禁 | `doc/使用手册.md` |
 | 接入 CI/CD 或测试平台 | `doc/平台接入指南.md` |
 | 部署 Web 管理平台 | `doc/部署手册.md`、`platform/README.md` |
 
@@ -278,8 +278,7 @@ doc/
 
 ## 文档
 
-- `doc/使用手册-入门篇.md`：安装、第一个用例、执行、断言、变量、报告
-- `doc/使用手册-进阶篇.md`：HTML 报告、数据驱动、并发、hooks、协议扩展、平台
+- `doc/使用手册.md`：完整使用手册（入门 + 进阶，章节 1-31）
 - `doc/需求规格说明书.md`：产品需求规格
 - `doc/技术方案.md`：架构设计
 - `doc/下一步计划.md`：任务管理
