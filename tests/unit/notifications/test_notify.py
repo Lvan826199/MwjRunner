@@ -9,7 +9,6 @@ import pytest
 
 from mwjrunner.notifications import (
     NotifyConfig,
-    NotifyResult,
     build_summary_text,
     parse_notify_configs,
     send_notification,
@@ -125,7 +124,14 @@ class TestParseNotifyConfigs:
         assert configs[0].webhook_url == "https://example.com/hook"
 
     def test_parse_email(self) -> None:
-        data = [{"type": "email", "smtp_host": "smtp.qq.com", "smtp_port": 465, "smtp_user": "a@b.com", "smtp_password": "p", "recipients": ["c@d.com"]}]
+        data = [{
+            "type": "email",
+            "smtp_host": "smtp.qq.com",
+            "smtp_port": 465,
+            "smtp_user": "a@b.com",
+            "smtp_password": "p",
+            "recipients": ["c@d.com"],
+        }]
         configs = parse_notify_configs(data)
         assert configs[0].type == "email"
         assert configs[0].recipients == ["c@d.com"]

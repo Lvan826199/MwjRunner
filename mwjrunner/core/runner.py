@@ -13,8 +13,6 @@ from typing import Any
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-_DEFAULT_TZ = ZoneInfo("Asia/Shanghai")
-
 from mwjrunner.assertions.builtin import create_default_registry
 from mwjrunner.cases.data_driver import expand_data_driven
 from mwjrunner.cases.discovery import discover_case_files
@@ -24,18 +22,32 @@ from mwjrunner.cases.loader import load_yaml_case
 from mwjrunner.cases.model import RequestSpec, TestCase, TestStep
 from mwjrunner.config.loader import ConfigLoadError, load_config
 from mwjrunner.config.model import AuthConfig
-from mwjrunner.core.quality_gate import QualityGateConfig, evaluate_quality_gate, parse_quality_gate_config
+from mwjrunner.core.quality_gate import (
+    QualityGateConfig,
+    evaluate_quality_gate,
+    parse_quality_gate_config,
+)
 from mwjrunner.hooks.executor import run_hooks
 from mwjrunner.http.executor import HttpExecutor
 from mwjrunner.http.model import HttpResult
 from mwjrunner.logging.config import LogConfig
 from mwjrunner.logging.setup import configure_logging
+from mwjrunner.notifications import parse_notify_configs, send_notification
 from mwjrunner.reports.console import ConsoleReporter
-from mwjrunner.reports.exit_code import ASSERTION_FAILED_EXIT_CODE, ERROR_EXIT_CODE, INTERNAL_ERROR_EXIT_CODE, SUCCESS_EXIT_CODE, resolve_exit_code
+from mwjrunner.reports.exit_code import (
+    ASSERTION_FAILED_EXIT_CODE,
+    ERROR_EXIT_CODE,
+    INTERNAL_ERROR_EXIT_CODE,
+    QUALITY_GATE_EXIT_CODE,
+    SUCCESS_EXIT_CODE,
+    resolve_exit_code,
+)
 from mwjrunner.reports.html import HtmlReporter
 from mwjrunner.reports.json import JsonReporter
 from mwjrunner.reports.model import CaseResult, RunResult, StepResult, Summary
 from mwjrunner.variables.engine import VariableEngine, VariableError
+
+_DEFAULT_TZ = ZoneInfo("Asia/Shanghai")
 
 DEFAULT_REPORT_DIR = "reports"
 DEFAULT_REPORT_TYPES = ("console",)
@@ -85,8 +97,6 @@ class RunExecutor:
 
     def run(self) -> int:
         """执行用例、输出报告并返回退出码。"""
-        from mwjrunner.reports.exit_code import QUALITY_GATE_EXIT_CODE
-
         result = self.execute()
         self.write_reports(result)
 
@@ -112,7 +122,6 @@ class RunExecutor:
         """发送通知（如果配置了通知渠道）。"""
         if not self.notify_configs:
             return
-        from mwjrunner.notifications import send_notification
         for config in self.notify_configs:
             notify_result = send_notification(result, config)
             if not notify_result.success:
@@ -285,7 +294,15 @@ class RunExecutor:
         errors: list[str] = []
 
         for step in case.steps:
-            step_result = self._execute_step(step, variable_engine, http_executor, registry, logger, effective_auth, case_dir)
+            step_result = self._execute_step(
+                step,
+                variable_engine,
+                http_executor,
+                registry,
+                logger,
+                effective_auth,
+                case_dir,
+            )
             steps.append(step_result)
             if step_result.status == "error":
                 errors.extend(step_result.errors)
@@ -471,8 +488,16 @@ def _resolve_auth(
     if global_auth is not None:
         # 全局 auth 中的 token 等字段也可能包含变量引用
         rendered_token = variable_engine.render(global_auth.token) if global_auth.token else global_auth.token
-        rendered_username = variable_engine.render(global_auth.username) if global_auth.username else global_auth.username
-        rendered_password = variable_engine.render(global_auth.password) if global_auth.password else global_auth.password
+        rendered_username = (
+            variable_engine.render(global_auth.username)
+            if global_auth.username
+            else global_auth.username
+        )
+        rendered_password = (
+            variable_engine.render(global_auth.password)
+            if global_auth.password
+            else global_auth.password
+        )
         resolved = AuthConfig(
             type=global_auth.type,
             token=rendered_token,
@@ -555,7 +580,7 @@ def _parse_report_types(report: str | None) -> tuple[str, ...]:
     return report_types
 
 
-def _collect_unsupported_options(args: Any) -> list[str]:
+def _collect_unsupported_options(_args: Any) -> list[str]:
     return []
 
 
@@ -606,5 +631,4 @@ def _parse_notify_configs(raw: list[dict[str, Any]] | None) -> list[Any]:
     """解析通知配置列表。"""
     if not raw:
         return []
-    from mwjrunner.notifications import parse_notify_configs
     return parse_notify_configs(raw)

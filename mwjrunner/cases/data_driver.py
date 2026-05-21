@@ -49,10 +49,7 @@ def _load_data(case: TestCase) -> list[dict[str, Any]]:
 
 def _load_data_file(data_file: str, source_file: str | None) -> list[dict[str, Any]]:
     """从外部文件加载数据。路径相对于用例文件所在目录解析。"""
-    if source_file is not None:
-        base_dir = Path(source_file).parent
-    else:
-        base_dir = Path.cwd()
+    base_dir = Path(source_file).parent if source_file is not None else Path.cwd()
 
     file_path = base_dir / data_file
     if not file_path.is_file():
@@ -66,15 +63,14 @@ def _load_data_file(data_file: str, source_file: str | None) -> list[dict[str, A
     suffix = file_path.suffix.lower()
     if suffix == ".json":
         return _load_json_data(file_path, source_file)
-    elif suffix == ".csv":
+    if suffix == ".csv":
         return _load_csv_data(file_path, source_file)
-    else:
-        raise CaseLoadError(
-            source_file or "<unknown>",
-            "data_file",
-            f"不支持的数据文件格式: {suffix}",
-            "支持的格式: .json, .csv",
-        )
+    raise CaseLoadError(
+        source_file or "<unknown>",
+        "data_file",
+        f"不支持的数据文件格式: {suffix}",
+        "支持的格式: .json, .csv",
+    )
 
 
 def _load_json_data(file_path: Path, source_file: str | None) -> list[dict[str, Any]]:

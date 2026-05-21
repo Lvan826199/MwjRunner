@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from mwjrunner.hooks.executor import HookResult, run_hooks, _load_hook_function
+from mwjrunner.hooks.executor import _load_hook_function, run_hooks
 
 
 def test_run_hooks_success() -> None:

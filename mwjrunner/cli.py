@@ -6,7 +6,12 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from mwjrunner.cases.discovery import discover_case_files
+from mwjrunner.cases.errors import CaseLoadError
+from mwjrunner.cases.loader import load_yaml_case
 from mwjrunner.core.runner import run_from_args
+from mwjrunner.importers import import_postman_collection
+from mwjrunner.importers.openapi import generate_from_openapi
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -62,14 +67,18 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--dir", default=".", help="初始化目标目录,默认当前目录。")
     init_parser.set_defaults(handler=handle_init)
 
-    # import 子命令
     import_parser = subparsers.add_parser(
         "import",
         help="导入外部用例集合",
         description="从 Postman Collection 等格式导入并生成 MwjRunner YAML 用例。",
     )
     import_parser.add_argument("source", help="源文件路径（如 postman_collection.json）。")
-    import_parser.add_argument("--format", default="postman", choices=["postman", "openapi"], help="源格式,默认 postman。")
+    import_parser.add_argument(
+        "--format",
+        default="postman",
+        choices=["postman", "openapi"],
+        help="源格式,默认 postman。",
+    )
     import_parser.add_argument("--output", "-o", default="cases/imported", help="输出目录,默认 cases/imported。")
     import_parser.set_defaults(handler=handle_import)
 
@@ -83,10 +92,6 @@ def handle_run(args: argparse.Namespace) -> int:
 
 def handle_validate(args: argparse.Namespace) -> int:
     """处理 validate 子命令：校验用例文件格式。"""
-    from mwjrunner.cases.discovery import discover_case_files
-    from mwjrunner.cases.errors import CaseLoadError
-    from mwjrunner.cases.loader import load_yaml_case
-
     path = Path(args.path)
     case_files = discover_case_files(path)
     if not case_files:
@@ -165,9 +170,6 @@ def handle_init(args: argparse.Namespace) -> int:
 
 def handle_import(args: argparse.Namespace) -> int:
     """处理 import 子命令：导入外部用例集合。"""
-    from mwjrunner.importers import import_postman_collection
-    from mwjrunner.importers.openapi import generate_from_openapi
-
     source = Path(args.source)
     output = Path(args.output)
     fmt = args.format

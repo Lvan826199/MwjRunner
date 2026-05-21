@@ -10,7 +10,6 @@ import yaml
 
 from mwjrunner.importers import import_postman_collection
 
-
 SAMPLE_COLLECTION = {
     "info": {
         "name": "Test API",

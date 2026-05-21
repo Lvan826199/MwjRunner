@@ -142,7 +142,6 @@ class VariableEngine:
 
     def _extract_regex(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
         """从响应体正则提取。path 为正则表达式，第一个捕获组为提取值。"""
-        import re
         text = result.response.text
         match = re.search(spec.path, text)
         if match is None:

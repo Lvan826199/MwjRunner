@@ -132,7 +132,12 @@ def _parse_files(raw_files: Any, source_file: str, field: str) -> list[dict[str,
     for index, item in enumerate(raw_files):
         item_field = f"{field}[{index}]"
         if not isinstance(item, dict):
-            raise _error(source_file, item_field, "files 每项必须是对象。", "请使用 {field: file, path: ./a.txt} 格式。")
+            raise _error(
+                source_file,
+                item_field,
+                "files 每项必须是对象。",
+                "请使用 {field: file, path: ./a.txt} 格式。",
+            )
         if "path" not in item or not isinstance(item["path"], str):
             raise _error(source_file, f"{item_field}.path", "files 每项必须包含 path 字段。", "请填写文件路径。")
         files.append({k: str(v) for k, v in item.items()})
@@ -276,7 +281,7 @@ def _optional_string(raw: dict[str, Any], key: str, source_file: str, parent: st
         return None
     if not isinstance(value, str):
         field = f"{parent}.{key}" if parent else key
-        raise _error(source_file, field, f"{field} 必须是字符串。", f"请填写字符串值。")
+        raise _error(source_file, field, f"{field} 必须是字符串。", "请填写字符串值。")
     return value
 
 

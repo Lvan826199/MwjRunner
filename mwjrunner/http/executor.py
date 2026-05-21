@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import time
 from pathlib import Path
-from typing import IO, Any
+from typing import IO
 from urllib.parse import urljoin
 
 try:
@@ -149,8 +150,6 @@ class HttpExecutor:
         Returns:
             (httpx files 参数, 需要关闭的文件句柄列表)
         """
-        import mimetypes
-
         files_param: list[tuple[str, tuple[str, IO[bytes], str]]] = []
         opened: list[IO[bytes]] = []
 
@@ -167,7 +166,7 @@ class HttpExecutor:
                 guessed, _ = mimetypes.guess_type(str(file_path))
                 content_type = guessed or "application/octet-stream"
 
-            fh = open(file_path, "rb")  # noqa: SIM115
+            fh = file_path.open("rb")
             opened.append(fh)
             files_param.append((field_name, (file_path.name, fh, content_type)))
 

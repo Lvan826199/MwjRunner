@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import json
 import smtplib
 from dataclasses import dataclass, field
 from email.mime.text import MIMEText

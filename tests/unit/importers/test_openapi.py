@@ -10,7 +10,6 @@ import yaml
 
 from mwjrunner.importers.openapi import generate_from_openapi
 
-
 SAMPLE_OPENAPI_V3 = {
     "openapi": "3.0.0",
     "info": {"title": "Test API", "version": "1.0.0"},

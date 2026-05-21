@@ -68,10 +68,7 @@ def profile(authorization: Annotated[str | None, Header()] = None) -> dict[str, 
 
 @app.get("/api/items")
 def list_items(keyword: Annotated[str | None, Query()] = None) -> dict[str, object]:
-    if keyword:
-        filtered_items = [item for item in ITEMS if keyword.lower() in item["name"].lower()]
-    else:
-        filtered_items = ITEMS
+    filtered_items = [item for item in ITEMS if keyword.lower() in item["name"].lower()] if keyword else ITEMS
 
     return {"code": 0, "data": filtered_items}
 

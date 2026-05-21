@@ -11,6 +11,7 @@ import pytest
 from mwjrunner.core.runner import RunExecutor, run_from_args
 from mwjrunner.http.model import HttpRequest, HttpResponse, HttpResult
 from mwjrunner.reports.exit_code import ERROR_EXIT_CODE, INTERNAL_ERROR_EXIT_CODE, SUCCESS_EXIT_CODE
+from mwjrunner.reports.model import CaseResult
 
 
 class FakeHttpExecutor:
@@ -402,7 +403,6 @@ steps:
     def flaky_execute_case(self, case, logger):
         call_count["n"] += 1
         if call_count["n"] == 1:
-            from mwjrunner.reports.model import CaseResult
             return CaseResult(name=case.name, status="failed", source_file=case.source_file)
         return original_execute_case(self, case, logger)
 
@@ -442,7 +442,6 @@ steps:
 
     def always_fail(self, case, logger):
         call_count["n"] += 1
-        from mwjrunner.reports.model import CaseResult
         return CaseResult(name=case.name, status="failed", source_file=case.source_file)
 
     monkeypatch.setattr(RunExecutor, "_execute_case", always_fail)

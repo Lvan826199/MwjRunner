@@ -9,13 +9,14 @@ from pathlib import Path
 import pytest
 
 from mwjrunner.cases import load_yaml_case
+from mwjrunner.cases.model import RequestSpec
 from mwjrunner.http import HttpExecutor
 
 
 @pytest.fixture(scope="module")
-def fastapi_server():
+def fastapi_server(repo_root: Path):
     """启动 FastAPI 示例服务。"""
-    examples_api_dir = Path(__file__).parent.parent.parent.parent / "examples" / "api"
+    examples_api_dir = repo_root / "examples" / "api"
 
     if not examples_api_dir.exists():
         pytest.skip("examples/api 目录不存在")
@@ -45,9 +46,6 @@ class TestHttpExecutorIntegration:
     def test_execute_health_check(self, fastapi_server: str) -> None:
         """测试请求 FastAPI 示例服务 /health 接口。"""
         executor = HttpExecutor(base_url=fastapi_server)
-
-        # 构建简单的 RequestSpec
-        from mwjrunner.cases.model import RequestSpec
 
         request_spec = RequestSpec(method="GET", url="/health")
 
@@ -88,14 +86,12 @@ steps:
 
     def test_execute_post_with_json(self, fastapi_server: str) -> None:
         """测试 POST 请求携带 JSON 数据。"""
-        from mwjrunner.cases.model import RequestSpec
-
         executor = HttpExecutor(base_url=fastapi_server)
 
         request_spec = RequestSpec(
             method="POST",
             url="/api/login",
-            json={"username": "admin", "password": "admin123"},
+            json={"username": "demo", "password": "123456"},
         )
 
         result = executor.execute(request_spec)
@@ -110,14 +106,12 @@ steps:
 
     def test_execute_with_query_params(self, fastapi_server: str) -> None:
         """测试 GET 请求携带查询参数。"""
-        from mwjrunner.cases.model import RequestSpec
-
         executor = HttpExecutor(base_url=fastapi_server)
 
         request_spec = RequestSpec(
             method="GET",
             url="/api/items",
-            query={"keyword": "笔记本"},
+            query={"keyword": "book"},
         )
 
         result = executor.execute(request_spec)
@@ -132,8 +126,6 @@ steps:
 
     def test_execute_timeout(self, fastapi_server: str) -> None:
         """测试请求超时。"""
-        from mwjrunner.cases.model import RequestSpec
-
         executor = HttpExecutor(base_url=fastapi_server)
 
         # 使用极短的超时时间
@@ -153,8 +145,6 @@ steps:
 
     def test_execute_network_error(self) -> None:
         """测试网络错误。"""
-        from mwjrunner.cases.model import RequestSpec
-
         # 使用不存在的服务器
         executor = HttpExecutor(base_url="http://localhost:9999")
 
