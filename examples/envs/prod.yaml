@@ -1,0 +1,8 @@
+base_url: http://prod-server:8000
+timeout: 10
+headers:
+  User-Agent: MwjRunner/1.0.0
+variables:
+  env_name: prod
+  default_username: prod_demo
+  default_password: "prod123456"

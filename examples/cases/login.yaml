@@ -1,5 +1,6 @@
 name: 登录成功
-tags: [smoke, auth]
+tags: [smoke, auth, P0]
+priority: P0
 variables:
   username: demo
   password: "123456"

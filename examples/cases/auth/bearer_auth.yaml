@@ -1,0 +1,33 @@
+name: Bearer 认证演示
+tags: [auth, smoke]
+priority: P0
+auth:
+  type: bearer
+  token: demo-token
+steps:
+  - name: 自动注入 Bearer token 访问 profile
+    request:
+      method: GET
+      url: /api/profile
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_path
+        path: $.data.username
+        expected: demo
+
+  - name: 自动注入 Bearer token 创建商品
+    request:
+      method: POST
+      url: /api/items
+      headers:
+        Content-Type: application/json
+      json:
+        name: bearer_auth_item
+        price: 99.9
+    assertions:
+      - type: status_code
+        expected: 201
+      - type: json_path
+        path: $.code
+        expected: 0

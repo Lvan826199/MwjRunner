@@ -1,5 +1,6 @@
 name: 健康检查失败示例
-tags: [demo, fail]
+tags: [demo, fail, negative]
+priority: P2
 steps:
   - name: 故意写错健康状态
     request:

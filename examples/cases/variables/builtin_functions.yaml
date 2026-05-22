@@ -1,0 +1,58 @@
+name: 内置变量函数演示
+tags: [variables, smoke]
+priority: P1
+variables:
+  item_prefix: demo
+steps:
+  - name: 创建带时间戳的商品
+    request:
+      method: POST
+      url: /api/items
+      headers:
+        Authorization: Bearer demo-token
+        Content-Type: application/json
+      json:
+        name: "${item_prefix}_${__timestamp()}"
+        price: ${__random_int(10, 100)}
+    assertions:
+      - type: status_code
+        expected: 201
+      - type: json_path
+        path: $.code
+        expected: 0
+    extract:
+      created_id: $.data.id
+
+  - name: 创建带 UUID 的商品
+    request:
+      method: POST
+      url: /api/items
+      headers:
+        Authorization: Bearer demo-token
+        Content-Type: application/json
+      json:
+        name: "uuid_${__uuid()}"
+        price: ${__random_int(5, 50)}
+    assertions:
+      - type: status_code
+        expected: 201
+      - type: json_path
+        path: $.code
+        expected: 0
+
+  - name: 创建带随机字符串的商品
+    request:
+      method: POST
+      url: /api/items
+      headers:
+        Authorization: Bearer demo-token
+        Content-Type: application/json
+      json:
+        name: "item_${__random_str(8)}"
+        price: ${__random_int(1, 200)}
+    assertions:
+      - type: status_code
+        expected: 201
+      - type: json_path
+        path: $.code
+        expected: 0

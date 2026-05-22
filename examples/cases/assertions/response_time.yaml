@@ -1,0 +1,28 @@
+name: 响应时间断言演示
+tags: [assertions, performance]
+priority: P1
+steps:
+  - name: 验证健康接口响应时间
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: response_time
+        expected: 1000
+
+  - name: 验证登录接口响应时间
+    request:
+      method: POST
+      url: /api/login
+      headers:
+        Content-Type: application/json
+      json:
+        username: demo
+        password: "123456"
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: response_time
+        expected: 2000

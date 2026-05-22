@@ -1,0 +1,17 @@
+name: 商品搜索数据驱动（CSV）
+tags: [data_driven, items]
+priority: P1
+data_file: ../../data/users.csv
+steps:
+  - name: 搜索商品 ${keyword}
+    request:
+      method: GET
+      url: /api/items
+      query:
+        keyword: ${keyword}
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_path
+        path: $.code
+        expected: 0

@@ -1,0 +1,33 @@
+name: 正则提取器演示
+tags: [extractors, regex]
+priority: P1
+steps:
+  - name: 从登录响应提取 token
+    request:
+      method: POST
+      url: /api/login
+      headers:
+        Content-Type: application/json
+      json:
+        username: demo
+        password: "123456"
+    extract:
+      raw_token:
+        type: regex
+        path: '"token":\s*"([^"]+)"'
+    assertions:
+      - type: status_code
+        expected: 200
+
+  - name: 使用正则提取的 token 访问 profile
+    request:
+      method: GET
+      url: /api/profile
+      headers:
+        Authorization: Bearer ${raw_token}
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_path
+        path: $.data.username
+        expected: demo

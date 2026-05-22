@@ -1,0 +1,54 @@
+name: JSON Schema 断言演示
+tags: [assertions, schema]
+priority: P1
+steps:
+  - name: 验证健康检查响应结构
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_schema
+        expected:
+          type: object
+          required:
+            - status
+          properties:
+            status:
+              type: string
+              enum:
+                - ok
+                - degraded
+
+  - name: 验证商品列表响应结构
+    request:
+      method: GET
+      url: /api/items
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_schema
+        expected:
+          type: object
+          required:
+            - code
+            - data
+          properties:
+            code:
+              type: integer
+            data:
+              type: array
+              items:
+                type: object
+                required:
+                  - id
+                  - name
+                  - price
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  price:
+                    type: number

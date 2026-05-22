@@ -1,0 +1,8 @@
+base_url: http://test-server:8000
+timeout: 60
+headers:
+  User-Agent: MwjRunner/1.0.0
+variables:
+  env_name: test
+  default_username: test_demo
+  default_password: "test123456"

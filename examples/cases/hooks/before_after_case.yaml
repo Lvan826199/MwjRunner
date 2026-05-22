@@ -1,0 +1,19 @@
+name: Hooks 生命周期演示
+tags: [hooks, auth]
+priority: P1
+hooks:
+  before_case: examples.hooks.auth_hook:inject_token
+  after_case: examples.hooks.auth_hook:cleanup
+steps:
+  - name: 使用 hook 注入的 token 访问 profile
+    request:
+      method: GET
+      url: /api/profile
+      headers:
+        Authorization: Bearer ${injected_token}
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: json_path
+        path: $.data.username
+        expected: demo

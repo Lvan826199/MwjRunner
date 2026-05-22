@@ -1,0 +1,23 @@
+name: 正则断言演示
+tags: [assertions, regex]
+priority: P1
+steps:
+  - name: 验证商品列表包含数字 ID
+    request:
+      method: GET
+      url: /api/items
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: regex
+        expected: '"id":\s*\d+'
+
+  - name: 验证健康状态匹配正则
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: regex
+        expected: '"status":\s*"ok"'

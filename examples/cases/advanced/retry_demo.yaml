@@ -1,0 +1,12 @@
+name: 失败重试演示
+tags: [advanced, retry]
+priority: P2
+retry: 2
+steps:
+  - name: 请求固定错误接口（演示重试）
+    request:
+      method: GET
+      url: /api/error
+    assertions:
+      - type: status_code
+        expected: 200

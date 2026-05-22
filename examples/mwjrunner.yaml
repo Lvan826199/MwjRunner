@@ -1,0 +1,4 @@
+quality_gate:
+  max_failure_rate: 0.1
+  max_error_rate: 0.05
+  max_response_time_ms: 2000

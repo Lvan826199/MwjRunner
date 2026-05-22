@@ -1,0 +1,25 @@
+name: Header 提取器演示
+tags: [extractors, header]
+priority: P1
+steps:
+  - name: 获取响应 Content-Type 头
+    request:
+      method: GET
+      url: /api/items
+    extract:
+      content_type:
+        type: header
+        path: content-type
+    assertions:
+      - type: status_code
+        expected: 200
+
+  - name: 使用提取的 Content-Type 验证（body_contains）
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: body_contains
+        expected: ok

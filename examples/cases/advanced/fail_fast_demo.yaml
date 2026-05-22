@@ -1,0 +1,28 @@
+name: fail-fast 演示
+tags: [advanced, fail_fast]
+priority: P2
+steps:
+  - name: 第 1 步：健康检查（通过）
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+
+  - name: 第 2 步：断言失败（触发 fail-fast）
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: json_path
+        path: $.status
+        expected: down
+
+  - name: 第 3 步：应被跳过
+    request:
+      method: GET
+      url: /api/items
+    assertions:
+      - type: status_code
+        expected: 200

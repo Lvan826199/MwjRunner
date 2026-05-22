@@ -1,5 +1,6 @@
 name: 健康检查
-tags: [smoke]
+tags: [smoke, P0]
+priority: P0
 steps:
   - name: 服务健康状态
     request:

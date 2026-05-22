@@ -1,5 +1,6 @@
 name: Quick Start 验证
-tags: [quickstart, smoke]
+tags: [quickstart, external]
+priority: P1
 steps:
   - name: GET 请求验证
     request:

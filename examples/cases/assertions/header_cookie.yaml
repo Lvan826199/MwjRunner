@@ -1,0 +1,25 @@
+name: Header 断言演示
+tags: [assertions, header]
+priority: P1
+steps:
+  - name: 验证响应 Content-Type
+    request:
+      method: GET
+      url: /health
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: header
+        path: content-type
+        expected: application/json
+
+  - name: 验证 items 接口 Content-Type
+    request:
+      method: GET
+      url: /api/items
+    assertions:
+      - type: status_code
+        expected: 200
+      - type: header
+        path: content-type
+        expected: application/json
