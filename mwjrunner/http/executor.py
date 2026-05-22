@@ -65,6 +65,12 @@ class HttpExecutor:
 
             start_time = time.perf_counter()
             transport = httpx.HTTPTransport()
+
+            # 如果 body 是 dict/list，序列化为 JSON 字符串
+            body_content = request_spec.body
+            if body_content is not None and isinstance(body_content, (dict, list)):
+                body_content = json.dumps(body_content, ensure_ascii=False)
+
             try:
                 with httpx.Client(
                     timeout=timeout,
@@ -79,7 +85,7 @@ class HttpExecutor:
                         params=request_spec.query,
                         json=request_spec.json if not files_param else None,
                         data=request_spec.data,
-                        content=request_spec.body if not files_param else None,
+                        content=body_content if not files_param else None,
                         files=files_param,
                     )
             finally:
@@ -184,6 +190,9 @@ class HttpExecutor:
                 return json.dumps(redacted_data, ensure_ascii=False)
             return str(redacted_data)
         if request_spec.body is not None:
+            # 如果 body 是 dict/list，先序列化再脱敏
+            if isinstance(request_spec.body, (dict, list)):
+                return json.dumps(redact_value(request_spec.body), ensure_ascii=False)
             return redact_body(request_spec.body)
         return None
 
