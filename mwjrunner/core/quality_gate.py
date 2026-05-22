@@ -40,25 +40,19 @@ def evaluate_quality_gate(result: RunResult, config: QualityGateConfig) -> Quali
     if config.max_failure_rate is not None:
         failure_rate = result.summary.failed_cases / total
         if failure_rate > config.max_failure_rate:
-            violations.append(
-                f"失败率 {failure_rate:.1%} 超过阈值 {config.max_failure_rate:.1%}"
-            )
+            violations.append(f"失败率 {failure_rate:.1%} 超过阈值 {config.max_failure_rate:.1%}")
 
     # 错误率检查
     if config.max_error_rate is not None:
         error_rate = result.summary.error_cases / total
         if error_rate > config.max_error_rate:
-            violations.append(
-                f"错误率 {error_rate:.1%} 超过阈值 {config.max_error_rate:.1%}"
-            )
+            violations.append(f"错误率 {error_rate:.1%} 超过阈值 {config.max_error_rate:.1%}")
 
     # 响应时间检查
     if config.max_response_time_ms is not None:
         max_elapsed = _get_max_response_time(result)
         if max_elapsed is not None and max_elapsed > config.max_response_time_ms:
-            violations.append(
-                f"最大响应时间 {max_elapsed:.0f}ms 超过阈值 {config.max_response_time_ms:.0f}ms"
-            )
+            violations.append(f"最大响应时间 {max_elapsed:.0f}ms 超过阈值 {config.max_response_time_ms:.0f}ms")
 
     return QualityGateResult(passed=len(violations) == 0, violations=violations)
 
@@ -79,9 +73,8 @@ def _get_max_response_time(result: RunResult) -> float | None:
     max_time: float | None = None
     for case in result.cases:
         for step in case.steps:
-            if step.response and step.response.elapsed_ms:
-                if max_time is None or step.response.elapsed_ms > max_time:
-                    max_time = step.response.elapsed_ms
+            if step.response and step.response.elapsed_ms and (max_time is None or step.response.elapsed_ms > max_time):
+                max_time = step.response.elapsed_ms
     return max_time
 
 

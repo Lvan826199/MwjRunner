@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from typing import Any
 
@@ -52,17 +53,13 @@ class ConnectionManager:
                 targets.update(self._connections.get(None, set()))
 
         for ws in targets:
-            try:
+            with contextlib.suppress(Exception):
                 await ws.send_text(message)
-            except Exception:
-                pass
 
     async def send_personal(self, websocket: WebSocket, event: str, data: Any):
         message = json.dumps({"event": event, "data": data}, default=str)
-        try:
+        with contextlib.suppress(Exception):
             await websocket.send_text(message)
-        except Exception:
-            pass
 
 
 manager = ConnectionManager()

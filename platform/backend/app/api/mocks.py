@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,12 +34,13 @@ async def list_mock_rules(db: AsyncSession = Depends(get_db), user: User = Depen
 @router.get("/{rule_id}", response_model=MockRuleResponse)
 async def get_mock_rule(rule_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取 Mock 规则详情。"""
-    rule = await check_resource_access(db, MockRule, rule_id, user)
-    return rule
+    return await check_resource_access(db, MockRule, rule_id, user)
 
 
 @router.post("", response_model=MockRuleResponse, status_code=201)
-async def create_mock_rule(data: MockRuleCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def create_mock_rule(
+    data: MockRuleCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
     """创建 Mock 规则。"""
     rule = MockRule(**data.model_dump(), team_id=user.team_id)
     db.add(rule)
@@ -51,7 +50,9 @@ async def create_mock_rule(data: MockRuleCreate, db: AsyncSession = Depends(get_
 
 
 @router.put("/{rule_id}", response_model=MockRuleResponse)
-async def update_mock_rule(rule_id: int, data: MockRuleUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def update_mock_rule(
+    rule_id: int, data: MockRuleUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
     """更新 Mock 规则。"""
     rule = await check_resource_access(db, MockRule, rule_id, user)
     for field, value in data.model_dump(exclude_unset=True).items():
@@ -70,17 +71,20 @@ async def delete_mock_rule(rule_id: int, db: AsyncSession = Depends(get_db), use
 
 
 @router.post("/generate", response_model=list[MockRuleResponse], status_code=201)
-async def generate_from_case(data: MockGenerateRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def generate_from_case(
+    data: MockGenerateRequest, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
     """从用例自动生成 Mock 规则。"""
     case = await check_resource_access(db, TestCase, data.case_id, user)
     if not case.content:
         raise HTTPException(status_code=400, detail="用例内容为空")
 
-    import yaml
+    import yaml  # noqa: PLC0415
+
     try:
         case_data = yaml.safe_load(case.content)
     except yaml.YAMLError:
-        raise HTTPException(status_code=400, detail="用例 YAML 解析失败")
+        raise HTTPException(status_code=400, detail="用例 YAML 解析失败") from None
 
     steps = case_data.get("steps", [])
     if not steps:
@@ -104,7 +108,7 @@ async def generate_from_case(data: MockGenerateRequest, db: AsyncSession = Depen
                 response_status = a.get("expected", 200)
 
         rule = MockRule(
-            name=f"{case.name} - {step.get('name', f'步骤{i+1}')}",
+            name=f"{case.name} - {step.get('name', f'步骤{i + 1}')}",
             method=method,
             path=url,
             response_status=response_status,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,7 +46,7 @@ async def list_folders(db: AsyncSession = Depends(get_db), user: User = Depends(
     query = select(TestCase.folder).distinct()
     query = team_filter(query, TestCase, user)
     result = await db.execute(query)
-    folders = sorted(set(row[0] for row in result.all()))
+    folders = sorted({row[0] for row in result.all()})
 
     root_children: list[FolderNode] = []
     for folder_path in folders:
@@ -58,8 +58,7 @@ async def list_folders(db: AsyncSession = Depends(get_db), user: User = Depends(
 @router.get("/{case_id}", response_model=CaseResponse)
 async def get_case(case_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取用例详情。"""
-    case = await check_resource_access(db, TestCase, case_id, user)
-    return case
+    return await check_resource_access(db, TestCase, case_id, user)
 
 
 @router.post("", response_model=CaseResponse, status_code=201)
@@ -82,7 +81,9 @@ async def create_case(data: CaseCreate, db: AsyncSession = Depends(get_db), user
 
 
 @router.put("/{case_id}", response_model=CaseResponse)
-async def update_case(case_id: int, data: CaseUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def update_case(
+    case_id: int, data: CaseUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
     """更新用例。"""
     case = await check_resource_access(db, TestCase, case_id, user)
     for field, value in data.model_dump(exclude_unset=True).items():

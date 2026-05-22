@@ -7,8 +7,7 @@ import hmac
 import json
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Request
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -36,9 +35,7 @@ async def github_webhook(
     if pipeline.webhook_secret:
         if not x_hub_signature_256:
             raise HTTPException(status_code=401, detail="缺少签名")
-        expected = "sha256=" + hmac.new(
-            pipeline.webhook_secret.encode(), body, hashlib.sha256
-        ).hexdigest()
+        expected = "sha256=" + hmac.new(pipeline.webhook_secret.encode(), body, hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, x_hub_signature_256):
             raise HTTPException(status_code=401, detail="签名验证失败")
 
@@ -87,9 +84,8 @@ async def gitlab_webhook(
         raise HTTPException(status_code=404, detail="Pipeline 不存在或已停用")
 
     # 验证 Token
-    if pipeline.webhook_secret:
-        if x_gitlab_token != pipeline.webhook_secret:
-            raise HTTPException(status_code=401, detail="Token 验证失败")
+    if pipeline.webhook_secret and x_gitlab_token != pipeline.webhook_secret:
+        raise HTTPException(status_code=401, detail="Token 验证失败")
 
     payload = await request.json()
     event_type = payload.get("object_kind", "push")
@@ -132,9 +128,8 @@ async def generic_webhook(
     if not pipeline or not pipeline.is_active:
         raise HTTPException(status_code=404, detail="Pipeline 不存在或已停用")
 
-    if pipeline.webhook_secret:
-        if x_webhook_secret != pipeline.webhook_secret:
-            raise HTTPException(status_code=401, detail="Secret 验证失败")
+    if pipeline.webhook_secret and x_webhook_secret != pipeline.webhook_secret:
+        raise HTTPException(status_code=401, detail="Secret 验证失败")
 
     payload = await request.json()
 

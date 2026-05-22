@@ -44,7 +44,7 @@ async def generate_ci_config(
 
 
 @router.get("")
-async def list_templates(user: User = Depends(get_current_user)):
+async def list_templates(_user: User = Depends(get_current_user)):
     """获取支持的 CI 平台列表。"""
     return {
         "platforms": [
@@ -81,7 +81,7 @@ def _generate_github_actions(p: Pipeline) -> str:
         env_vars = f"""
 env:
   BASE_URL: {p.base_url}
-  ENV_NAME: {p.env_name or 'test'}"""
+  ENV_NAME: {p.env_name or "test"}"""
 
     tags_filter = ""
     if p.case_filter_tags:
@@ -95,7 +95,7 @@ env:
         run: |
           curl -X POST '{p.notify_webhook}' \\
             -H 'Content-Type: application/json' \\
-            -d '{{"msgtype":"text","text":{{"content":"[MwjRunner] Pipeline {p.name} 执行失败 - ${{{{github.sha}}}}"}}}}'"""
+            -d '{{"msgtype":"text","text":{{"content":"[MwjRunner] Pipeline {p.name} 执行失败 - ${{{{github.sha}}}}"}}}}'"""  # noqa: E501
 
     return f"""name: MwjRunner - {p.name}
 
@@ -137,7 +137,7 @@ jobs:
 def _generate_gitlab_ci(p: Pipeline) -> str:
     schedule_section = ""
     if p.trigger_type == "schedule" and p.cron_expr:
-        schedule_section = f"""
+        schedule_section = """
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
 """

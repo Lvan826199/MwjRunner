@@ -20,7 +20,7 @@ def load_excel_data(file_path: str | Path, sheet: str | None = None) -> list[dic
         数据行列表，每行为 dict
     """
     try:
-        import openpyxl
+        import openpyxl  # noqa: PLC0415
     except ImportError as exc:
         raise ImportError("Excel 数据源需要 openpyxl，请运行 uv add openpyxl") from exc
 
@@ -65,6 +65,5 @@ def load_sql_data(
     首期仅提供接口定义，完整实现需后续补齐数据库驱动。
     """
     raise NotImplementedError(
-        "SQL 数据源将在后续版本实现。"
-        "当前可通过 CSV/JSON 数据文件或 hook 函数实现数据库数据注入。"
+        "SQL 数据源将在后续版本实现。当前可通过 CSV/JSON 数据文件或 hook 函数实现数据库数据注入。"
     )

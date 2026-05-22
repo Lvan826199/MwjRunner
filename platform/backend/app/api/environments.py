@@ -40,8 +40,7 @@ async def get_environment(
     user: User = Depends(get_current_user),
 ):
     """获取环境详情。"""
-    env = await check_resource_access(db, Environment, env_id, user)
-    return env
+    return await check_resource_access(db, Environment, env_id, user)
 
 
 @router.post("", response_model=EnvironmentResponse, status_code=201)

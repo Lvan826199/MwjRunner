@@ -61,6 +61,7 @@ class TaskShardResponse(BaseModel):
 
 class TaskShardResult(BaseModel):
     """Worker 上报分片执行结果。"""
+
     shard_id: int
     status: str
     exit_code: int = 0
@@ -75,6 +76,7 @@ class TaskShardResult(BaseModel):
 
 class DistributedExecutionCreate(BaseModel):
     """分布式执行请求。"""
+
     case_ids: list[int] = []
     base_url: str = ""
     env_name: str = ""

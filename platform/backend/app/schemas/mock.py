@@ -62,4 +62,5 @@ class MockRuleResponse(BaseModel):
 
 class MockGenerateRequest(BaseModel):
     """从用例自动生成 Mock 规则。"""
+
     case_id: int

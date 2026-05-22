@@ -5,6 +5,9 @@ target-version = "py313"
 
 line-length = 120
 
+# .claude/skills/ 为 Claude Code 技能脚本，不属于 MwjRunner 项目代码，整体排除检查。
+exclude = [".claude/skills/"]
+
 [lint]
 select = [
     "E",      # pycodestyle errors

@@ -48,10 +48,7 @@ def load_config(
     if env is not None:
         env_file = project_dir / "envs" / f"{env}.yaml"
         if not env_file.is_file():
-            raise ConfigLoadError(
-                f"环境配置文件不存在: {env_file}\n"
-                f"请在项目 envs/ 目录下创建 {env}.yaml 文件。"
-            )
+            raise ConfigLoadError(f"环境配置文件不存在: {env_file}\n请在项目 envs/ 目录下创建 {env}.yaml 文件。")
         env_data = _load_yaml_file(env_file)
         _merge_config(config, env_data)
 
@@ -73,7 +70,7 @@ def _load_yaml_file(file_path: Path) -> dict[str, Any]:
     return data
 
 
-def _merge_config(config: ProjectConfig, data: dict[str, Any]) -> None:
+def _merge_config(config: ProjectConfig, data: dict[str, Any]) -> None:  # noqa: PLR0912
     """将配置数据合并到 config 对象（后加载的覆盖先加载的）。"""
     if "base_url" in data:
         config.base_url = data["base_url"]

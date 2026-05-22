@@ -3,17 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import time
 from datetime import datetime
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.api.users import get_current_user
+from app.core.database import get_db
 from app.core.permissions import check_resource_access, team_filter
 from app.models.benchmark import Benchmark
 from app.models.user import User
@@ -34,8 +35,7 @@ async def list_benchmarks(db: AsyncSession = Depends(get_db), user: User = Depen
 @router.get("/{bench_id}", response_model=BenchmarkResponse)
 async def get_benchmark(bench_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取压测详情。"""
-    bench = await check_resource_access(db, Benchmark, bench_id, user)
-    return bench
+    return await check_resource_access(db, Benchmark, bench_id, user)
 
 
 @router.post("", response_model=BenchmarkResponse, status_code=201)
@@ -62,9 +62,9 @@ async def delete_benchmark(bench_id: int, db: AsyncSession = Depends(get_db), us
     await db.commit()
 
 
-async def run_benchmark(bench_id: int):
+async def run_benchmark(bench_id: int):  # noqa: PLR0915
     """后台执行压测任务。"""
-    from app.core.database import async_session_factory
+    from app.core.database import async_session_factory  # noqa: PLC0415
 
     async with async_session_factory() as db:
         bench = await db.get(Benchmark, bench_id)
@@ -76,10 +76,8 @@ async def run_benchmark(bench_id: int):
         await db.commit()
 
         headers = {}
-        try:
+        with contextlib.suppress(json.JSONDecodeError, TypeError):
             headers = json.loads(bench.headers)
-        except (json.JSONDecodeError, TypeError):
-            pass
 
         latencies: list[float] = []
         errors: dict[str, int] = {}

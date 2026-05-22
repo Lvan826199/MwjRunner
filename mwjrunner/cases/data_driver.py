@@ -99,7 +99,7 @@ def _load_json_data(file_path: Path, source_file: str | None) -> list[dict[str, 
                 source_file or "<unknown>",
                 f"data_file[{index}]",
                 "JSON 数据文件每条记录必须是对象。",
-                "请使用 {\"key\": \"value\"} 格式。",
+                '请使用 {"key": "value"} 格式。',
             )
     return data
 

@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import json
-import math
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -37,9 +36,8 @@ async def list_workers(db: AsyncSession = Depends(get_db)):
     # 自动标记超时 Worker
     now = datetime.utcnow()
     for w in workers:
-        if w.status != "offline" and w.last_heartbeat:
-            if (now - w.last_heartbeat).total_seconds() > HEARTBEAT_TIMEOUT:
-                w.status = "offline"
+        if w.status != "offline" and w.last_heartbeat and (now - w.last_heartbeat).total_seconds() > HEARTBEAT_TIMEOUT:
+            w.status = "offline"
     await db.commit()
     return workers
 
@@ -104,10 +102,11 @@ async def remove_worker(worker_id: str, db: AsyncSession = Depends(get_db)):
 
 # --- 分布式执行 ---
 
+
 @router.post("/dispatch", status_code=201)
 async def dispatch_execution(
     data: DistributedExecutionCreate,
-    background_tasks: BackgroundTasks,
+    _background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     """分布式执行：将用例分片分发到可用 Worker。"""
@@ -133,7 +132,8 @@ async def dispatch_execution(
     shard_count = min(shard_count, len(cases))  # 不超过用例数
 
     # 创建执行记录
-    from uuid import uuid4
+    from uuid import uuid4  # noqa: PLC0415
+
     run_id = f"dist-{uuid4().hex[:8]}"
     execution = Execution(
         run_id=run_id,
@@ -173,7 +173,7 @@ async def dispatch_execution(
         "execution_id": execution.id,
         "run_id": run_id,
         "shard_count": shard_count,
-        "workers_used": len(set(s.worker_id for s in shards)),
+        "workers_used": len({s.worker_id for s in shards}),
         "total_cases": len(cases),
     }
 

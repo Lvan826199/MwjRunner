@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
@@ -26,14 +26,15 @@ def verify_password(password: str, hashed: str) -> bool:
     """验证密码。兼容旧 SHA-256 哈希。"""
     # 兼容旧 SHA-256 格式（64 字符 hex）
     if len(hashed) == 64 and all(c in "0123456789abcdef" for c in hashed):
-        import hashlib
+        import hashlib  # noqa: PLC0415
+
         return hashlib.sha256(password.encode()).hexdigest() == hashed
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
 def create_access_token(user_id: int, username: str, role: str, team_id: int | None) -> str:
     """创建 Access Token。"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "username": username,
@@ -49,7 +50,7 @@ def create_access_token(user_id: int, username: str, role: str, team_id: int | N
 
 def create_refresh_token(user_id: int) -> tuple[str, str, datetime]:
     """创建 Refresh Token，返回 (token, jti, expires_at)。"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     jti = uuid.uuid4().hex
     expires_at = now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     payload = {

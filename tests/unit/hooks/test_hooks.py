@@ -37,6 +37,7 @@ def test_run_hooks_invalid_path() -> None:
 
 def test_run_hooks_modifies_context() -> None:
     """hook 可以修改 context。"""
+
     def inject_token(ctx: dict) -> None:
         ctx["token"] = "abc123"
 

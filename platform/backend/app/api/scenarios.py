@@ -7,8 +7,9 @@ import json
 import re
 import time
 from datetime import datetime
+from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,12 +53,13 @@ async def list_scenarios(db: AsyncSession = Depends(get_db), user: User = Depend
 @router.get("/{scenario_id}")
 async def get_scenario(scenario_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取场景详情。"""
-    s = await check_resource_access(db, Scenario, scenario_id, user)
-    return s
+    return await check_resource_access(db, Scenario, scenario_id, user)
 
 
 @router.post("", status_code=201)
-async def create_scenario(data: ScenarioCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def create_scenario(
+    data: ScenarioCreate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
     """创建场景。"""
     s = Scenario(**data.model_dump(), team_id=user.team_id)
     db.add(s)
@@ -67,7 +69,9 @@ async def create_scenario(data: ScenarioCreate, db: AsyncSession = Depends(get_d
 
 
 @router.put("/{scenario_id}")
-async def update_scenario(scenario_id: int, data: ScenarioUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def update_scenario(
+    scenario_id: int, data: ScenarioUpdate, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
     """更新场景。"""
     s = await check_resource_access(db, Scenario, scenario_id, user)
     for field, value in data.model_dump(exclude_unset=True).items():
@@ -110,7 +114,9 @@ async def run_scenario(
 
 
 @router.get("/{scenario_id}/runs")
-async def list_scenario_runs(scenario_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def list_scenario_runs(
+    scenario_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
     """获取场景执行记录。"""
     await check_resource_access(db, Scenario, scenario_id, user)
     result = await db.execute(
@@ -119,9 +125,9 @@ async def list_scenario_runs(scenario_id: int, db: AsyncSession = Depends(get_db
     return result.scalars().all()
 
 
-async def _execute_scenario(run_id: int, steps_json: str, variables_json: str):
+async def _execute_scenario(run_id: int, steps_json: str, variables_json: str):  # noqa: PLR0912 PLR0915
     """后台执行场景编排。"""
-    import httpx
+    import httpx  # noqa: PLC0415
 
     async with async_session() as db:
         run = await db.get(ScenarioRun, run_id)
@@ -147,7 +153,7 @@ async def _execute_scenario(run_id: int, steps_json: str, variables_json: str):
         async with httpx.AsyncClient(timeout=30.0) as client:
             for i, step in enumerate(steps):
                 step_start = time.perf_counter()
-                step_name = step.get("name", f"步骤{i+1}")
+                step_name = step.get("name", f"步骤{i + 1}")
                 case_id = step.get("case_id")
                 delay_ms = step.get("delay_ms", 0)
 
@@ -157,15 +163,19 @@ async def _execute_scenario(run_id: int, steps_json: str, variables_json: str):
                 # 获取用例
                 case = await db.get(TestCase, case_id) if case_id else None
                 if not case:
-                    step_results.append({
-                        "name": step_name, "status": "skipped",
-                        "error": f"用例 {case_id} 不存在",
-                    })
+                    step_results.append(
+                        {
+                            "name": step_name,
+                            "status": "skipped",
+                            "error": f"用例 {case_id} 不存在",
+                        }
+                    )
                     failed += 1
                     continue
 
                 # 解析用例 YAML
-                import yaml
+                import yaml  # noqa: PLC0415
+
                 try:
                     case_data = yaml.safe_load(case.content)
                 except Exception:
@@ -204,10 +214,9 @@ async def _execute_scenario(run_id: int, steps_json: str, variables_json: str):
                         # 简单断言
                         assertions = cs.get("assertions", [])
                         for a in assertions:
-                            if a.get("type") == "status_code":
-                                if resp.status_code != a.get("expected"):
-                                    step_passed = False
-                    except Exception as e:
+                            if a.get("type") == "status_code" and resp.status_code != a.get("expected"):
+                                step_passed = False
+                    except Exception:
                         step_passed = False
 
                 elapsed = (time.perf_counter() - step_start) * 1000
@@ -235,9 +244,11 @@ async def _execute_scenario(run_id: int, steps_json: str, variables_json: str):
 
 def _interpolate(text: str, context: dict[str, str]) -> str:
     """替换 {{var}} 占位符。"""
+
     def replacer(match):
         key = match.group(1).strip()
         return context.get(key, match.group(0))
+
     return re.sub(r"\{\{(.+?)\}\}", replacer, text)
 
 

@@ -15,7 +15,6 @@ class Scenario(Base):
     name = Column(String(200), nullable=False)
     description = Column(Text, default="")
     # 步骤定义（JSON 数组）
-    # [{"case_id": 1, "name": "登录", "extract": {"token": "$.response.token"}, "delay_ms": 0}, ...]
     steps = Column(Text, default="[]")
     # 全局变量（JSON）
     variables = Column(Text, default="{}")

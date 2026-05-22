@@ -152,12 +152,14 @@ class RunExecutor:
                     all_cases.extend(expand_data_driven(case))
                 except CaseLoadError as exc:
                     logger.error("用例加载失败: %s - %s", case_file, exc)
-                    load_errors.append(CaseResult(
-                        name=str(case_file),
-                        status="error",
-                        source_file=str(case_file),
-                        errors=[str(exc)],
-                    ))
+                    load_errors.append(
+                        CaseResult(
+                            name=str(case_file),
+                            status="error",
+                            source_file=str(case_file),
+                            errors=[str(exc)],
+                        )
+                    )
 
             # 过滤
             filtered_cases = filter_cases(
@@ -219,9 +221,13 @@ class RunExecutor:
         stopped = False
         for case_to_run in cases:
             if stopped:
-                results.append(CaseResult(
-                    name=case_to_run.name, status="skipped", source_file=case_to_run.source_file,
-                ))
+                results.append(
+                    CaseResult(
+                        name=case_to_run.name,
+                        status="skipped",
+                        source_file=case_to_run.source_file,
+                    )
+                )
                 continue
             case_result = self._execute_case_with_retry(case_to_run, logger)
             results.append(case_result)
@@ -244,10 +250,7 @@ class RunExecutor:
             return index, result
 
         with ThreadPoolExecutor(max_workers=self.workers) as executor:
-            futures = {
-                executor.submit(run_one, i, case): i
-                for i, case in enumerate(cases)
-            }
+            futures = {executor.submit(run_one, i, case): i for i, case in enumerate(cases)}
             for future in as_completed(futures):
                 index, case_result = future.result()
                 results[index] = case_result
@@ -278,7 +281,9 @@ class RunExecutor:
             hook_result = run_hooks(before_hooks, context)
             if not hook_result.success:
                 return CaseResult(
-                    name=case.name, status="error", source_file=case.source_file,
+                    name=case.name,
+                    status="error",
+                    source_file=case.source_file,
                     errors=[hook_result.error or "before_case hook 失败"],
                 )
 
@@ -489,14 +494,10 @@ def _resolve_auth(
         # 全局 auth 中的 token 等字段也可能包含变量引用
         rendered_token = variable_engine.render(global_auth.token) if global_auth.token else global_auth.token
         rendered_username = (
-            variable_engine.render(global_auth.username)
-            if global_auth.username
-            else global_auth.username
+            variable_engine.render(global_auth.username) if global_auth.username else global_auth.username
         )
         rendered_password = (
-            variable_engine.render(global_auth.password)
-            if global_auth.password
-            else global_auth.password
+            variable_engine.render(global_auth.password) if global_auth.password else global_auth.password
         )
         resolved = AuthConfig(
             type=global_auth.type,

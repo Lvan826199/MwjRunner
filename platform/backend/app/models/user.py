@@ -1,7 +1,5 @@
 """多租户和权限管理数据模型。"""
 
-from datetime import datetime
-
 from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.sql import func
 

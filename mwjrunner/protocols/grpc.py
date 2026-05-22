@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any
+from pathlib import Path
 
 from mwjrunner.protocols import (
     ProtocolAdapter,
@@ -31,7 +31,7 @@ class GrpcAdapter(ProtocolAdapter):
     def protocol_name(self) -> str:
         return "grpc"
 
-    def execute(self, request: ProtocolRequest) -> ProtocolResult:
+    def execute(self, request: ProtocolRequest) -> ProtocolResult:  # noqa: PLR0911 PLR0912 PLR0915
         """执行 gRPC 请求。
 
         request.target: "host:port/package.Service/Method"
@@ -45,10 +45,10 @@ class GrpcAdapter(ProtocolAdapter):
             - streaming: bool (是否 server streaming)
         """
         try:
-            import grpc
-            from grpc_reflection.v1alpha import reflection_pb2, reflection_pb2_grpc
-            from google.protobuf import descriptor_pool, descriptor_pb2, symbol_database
-            from google.protobuf.json_format import MessageToDict, ParseDict
+            import grpc  # noqa: PLC0415
+            from google.protobuf import descriptor_pb2, descriptor_pool, symbol_database  # noqa: PLC0415
+            from google.protobuf.json_format import MessageToDict, ParseDict  # noqa: PLC0415
+            from grpc_reflection.v1alpha import reflection_pb2, reflection_pb2_grpc  # noqa: PLC0415
         except ImportError:
             return ProtocolResult(
                 request=request,
@@ -97,7 +97,7 @@ class GrpcAdapter(ProtocolAdapter):
         try:
             if use_tls:
                 if tls_cert:
-                    with open(tls_cert, "rb") as f:
+                    with Path(tls_cert).open("rb") as f:
                         creds = grpc.ssl_channel_credentials(f.read())
                 else:
                     creds = grpc.ssl_channel_credentials()
@@ -115,9 +115,7 @@ class GrpcAdapter(ProtocolAdapter):
             reflection_stub = reflection_pb2_grpc.ServerReflectionStub(channel)
 
             # 获取文件描述
-            file_by_symbol_request = reflection_pb2.ServerReflectionRequest(
-                file_containing_symbol=full_service_name
-            )
+            file_by_symbol_request = reflection_pb2.ServerReflectionRequest(file_containing_symbol=full_service_name)
             responses = reflection_stub.ServerReflectionInfo(iter([file_by_symbol_request]))
             file_descriptor_proto = None
 
@@ -133,8 +131,13 @@ class GrpcAdapter(ProtocolAdapter):
             if not file_descriptor_proto:
                 # Fallback: 使用通用 JSON 调用
                 return self._generic_call(
-                    channel, full_service_name, method_name,
-                    request, timeout, is_streaming, start,
+                    channel,
+                    full_service_name,
+                    method_name,
+                    request,
+                    timeout,
+                    is_streaming,
+                    start,
                 )
 
             # 从描述中找到方法
@@ -154,8 +157,13 @@ class GrpcAdapter(ProtocolAdapter):
                 response_class = db.GetPrototype(output_type)
             except KeyError:
                 return self._generic_call(
-                    channel, full_service_name, method_name,
-                    request, timeout, is_streaming, start,
+                    channel,
+                    full_service_name,
+                    method_name,
+                    request,
+                    timeout,
+                    is_streaming,
+                    start,
                 )
 
             req_message = ParseDict(request.payload or {}, request_class())
@@ -188,26 +196,25 @@ class GrpcAdapter(ProtocolAdapter):
                         metadata={"streaming": True, "count": len(responses_data)},
                     ),
                 )
-            else:
-                # Unary
-                call = channel.unary_unary(
-                    full_method,
-                    request_serializer=request_class.SerializeToString,
-                    response_deserializer=response_class.FromString,
-                )
-                resp_msg = call(req_message, metadata=metadata, timeout=timeout)
-                result_data = MessageToDict(resp_msg)
+            # Unary
+            call = channel.unary_unary(
+                full_method,
+                request_serializer=request_class.SerializeToString,
+                response_deserializer=response_class.FromString,
+            )
+            resp_msg = call(req_message, metadata=metadata, timeout=timeout)
+            result_data = MessageToDict(resp_msg)
 
-                elapsed = (time.perf_counter() - start) * 1000
-                channel.close()
-                return ProtocolResult(
-                    request=request,
-                    response=ProtocolResponse(
-                        status="ok",
-                        payload=result_data,
-                        elapsed_ms=elapsed,
-                    ),
-                )
+            elapsed = (time.perf_counter() - start) * 1000
+            channel.close()
+            return ProtocolResult(
+                request=request,
+                response=ProtocolResponse(
+                    status="ok",
+                    payload=result_data,
+                    elapsed_ms=elapsed,
+                ),
+            )
 
         except grpc.RpcError as e:
             elapsed = (time.perf_counter() - start) * 1000
@@ -229,12 +236,18 @@ class GrpcAdapter(ProtocolAdapter):
             )
 
     def _generic_call(
-        self, channel, service_name: str, method_name: str,
-        request: ProtocolRequest, timeout: float, is_streaming: bool, start: float,
+        self,
+        channel,
+        service_name: str,
+        method_name: str,
+        request: ProtocolRequest,
+        timeout: float,
+        is_streaming: bool,
+        start: float,
     ) -> ProtocolResult:
         """通用 JSON 编码调用（无 proto 描述时的 fallback）。"""
         try:
-            import grpc
+            import grpc  # noqa: PLC0415
         except ImportError:
             return ProtocolResult(
                 request=request,
@@ -260,26 +273,29 @@ class GrpcAdapter(ProtocolAdapter):
                 return ProtocolResult(
                     request=request,
                     response=ProtocolResponse(
-                        status="ok", payload=results, elapsed_ms=elapsed,
+                        status="ok",
+                        payload=results,
+                        elapsed_ms=elapsed,
                         metadata={"streaming": True, "fallback": True},
                     ),
                 )
-            else:
-                call = channel.unary_unary(
-                    full_method,
-                    request_serializer=lambda x: x,
-                    response_deserializer=lambda x: json.loads(x) if x else {},
-                )
-                resp = call(payload_bytes, metadata=metadata, timeout=timeout)
-                elapsed = (time.perf_counter() - start) * 1000
-                channel.close()
-                return ProtocolResult(
-                    request=request,
-                    response=ProtocolResponse(
-                        status="ok", payload=resp, elapsed_ms=elapsed,
-                        metadata={"fallback": True},
-                    ),
-                )
+            call = channel.unary_unary(
+                full_method,
+                request_serializer=lambda x: x,
+                response_deserializer=lambda x: json.loads(x) if x else {},
+            )
+            resp = call(payload_bytes, metadata=metadata, timeout=timeout)
+            elapsed = (time.perf_counter() - start) * 1000
+            channel.close()
+            return ProtocolResult(
+                request=request,
+                response=ProtocolResponse(
+                    status="ok",
+                    payload=resp,
+                    elapsed_ms=elapsed,
+                    metadata={"fallback": True},
+                ),
+            )
         except grpc.RpcError as e:
             elapsed = (time.perf_counter() - start) * 1000
             channel.close()

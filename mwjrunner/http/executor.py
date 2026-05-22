@@ -67,14 +67,16 @@ class HttpExecutor:
             transport = httpx.HTTPTransport()
             try:
                 with httpx.Client(
-                    timeout=timeout, follow_redirects=True, transport=transport
+                    timeout=timeout,
+                    follow_redirects=True,
+                    transport=transport,
+                    cookies=request_spec.cookies,
                 ) as client:
                     response = client.request(
                         method=request_spec.method,
                         url=url,
                         headers=request_spec.headers,
                         params=request_spec.query,
-                        cookies=request_spec.cookies,
                         json=request_spec.json if not files_param else None,
                         data=request_spec.data,
                         content=request_spec.body if not files_param else None,

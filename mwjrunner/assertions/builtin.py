@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
+
+try:
+    import jsonschema
+except ImportError:
+    jsonschema = None  # type: ignore
 
 from mwjrunner.assertions.model import AssertionResult
 from mwjrunner.assertions.registry import AssertionRegistry
@@ -79,9 +85,19 @@ def assert_body_contains(spec: AssertionSpec, result: HttpResult) -> AssertionRe
     )
 
 
-def assert_json_schema(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
+def assert_json_schema(spec: AssertionSpec, result: HttpResult) -> AssertionResult:  # noqa: PLR0911
     """断言响应体符合 JSON Schema。"""
-    import jsonschema
+    if jsonschema is None:
+        return AssertionResult(
+            type=spec.type,
+            passed=False,
+            expected=spec.expected,
+            actual=None,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message="json_schema 断言失败: jsonschema 未安装，请运行 uv add jsonschema",
+        )
 
     if result.response is None:
         return AssertionResult(
@@ -183,27 +199,37 @@ def assert_response_time(spec: AssertionSpec, result: HttpResult) -> AssertionRe
         path=spec.path,
         target=spec.target,
         mode=spec.mode,
-        message="response_time 断言通过" if passed else f"response_time 断言失败: 实际耗时 {actual}ms 超过阈值 {threshold}ms",
+        message="response_time 断言通过"
+        if passed
+        else f"response_time 断言失败: 实际耗时 {actual}ms 超过阈值 {threshold}ms",
     )
 
 
 def assert_regex(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
     """断言响应体匹配正则表达式。"""
-    import re
-
     actual = result.response.text if result.response is not None else None
     if actual is None:
         return AssertionResult(
-            type=spec.type, passed=False, expected=spec.expected, actual=None,
-            path=spec.path, target=spec.target, mode=spec.mode,
+            type=spec.type,
+            passed=False,
+            expected=spec.expected,
+            actual=None,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
             message="regex 断言失败: 响应为空",
         )
     pattern = str(spec.expected)
     match = re.search(pattern, actual)
     passed = match is not None
     return AssertionResult(
-        type=spec.type, passed=passed, expected=pattern, actual=match.group(0) if match else None,
-        path=spec.path, target=spec.target, mode=spec.mode,
+        type=spec.type,
+        passed=passed,
+        expected=pattern,
+        actual=match.group(0) if match else None,
+        path=spec.path,
+        target=spec.target,
+        mode=spec.mode,
         message="regex 断言通过" if passed else f"regex 断言失败: 响应体不匹配模式 {pattern}",
     )
 
@@ -212,8 +238,13 @@ def assert_header(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
     """断言响应 header 值。"""
     if result.response is None:
         return AssertionResult(
-            type=spec.type, passed=False, expected=spec.expected, actual=None,
-            path=spec.path, target=spec.target, mode=spec.mode,
+            type=spec.type,
+            passed=False,
+            expected=spec.expected,
+            actual=None,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
             message="header 断言失败: 响应为空",
         )
     header_name = spec.path or spec.target or ""
@@ -225,8 +256,13 @@ def assert_header(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
             break
     passed = actual == spec.expected
     return AssertionResult(
-        type=spec.type, passed=passed, expected=spec.expected, actual=actual,
-        path=header_name, target=spec.target, mode=spec.mode,
+        type=spec.type,
+        passed=passed,
+        expected=spec.expected,
+        actual=actual,
+        path=header_name,
+        target=spec.target,
+        mode=spec.mode,
         message="header 断言通过" if passed else f"header 断言失败: {header_name} 期望 {spec.expected}, 实际 {actual}",
     )
 
@@ -235,16 +271,26 @@ def assert_cookie(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
     """断言响应 cookie 值。"""
     if result.response is None:
         return AssertionResult(
-            type=spec.type, passed=False, expected=spec.expected, actual=None,
-            path=spec.path, target=spec.target, mode=spec.mode,
+            type=spec.type,
+            passed=False,
+            expected=spec.expected,
+            actual=None,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
             message="cookie 断言失败: 响应为空",
         )
     cookie_name = spec.path or spec.target or ""
     actual = result.response.cookies.get(cookie_name)
     passed = actual == spec.expected
     return AssertionResult(
-        type=spec.type, passed=passed, expected=spec.expected, actual=actual,
-        path=cookie_name, target=spec.target, mode=spec.mode,
+        type=spec.type,
+        passed=passed,
+        expected=spec.expected,
+        actual=actual,
+        path=cookie_name,
+        target=spec.target,
+        mode=spec.mode,
         message="cookie 断言通过" if passed else f"cookie 断言失败: {cookie_name} 期望 {spec.expected}, 实际 {actual}",
     )
 

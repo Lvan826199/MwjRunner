@@ -36,8 +36,12 @@ def _result() -> RunResult:
         started_at=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
         ended_at=datetime(2026, 5, 9, 10, 0, 1, tzinfo=UTC),
         summary=Summary(
-            total_cases=1, passed_cases=1, total_steps=1,
-            passed_steps=1, total_assertions=1, elapsed_ms=8.0,
+            total_cases=1,
+            passed_cases=1,
+            total_steps=1,
+            passed_steps=1,
+            total_assertions=1,
+            elapsed_ms=8.0,
         ),
         cases=[case],
     )
@@ -51,8 +55,12 @@ def _failed_result() -> RunResult:
         response=HttpResponse(status_code=200, headers={}, cookies={}, body=b'{"status":"ok"}', elapsed_ms=5.0),
         assertions=[
             AssertionResult(
-                type="json_path", passed=False, expected="down",
-                actual="ok", path="$.status", message="json_path 断言失败",
+                type="json_path",
+                passed=False,
+                expected="down",
+                actual="ok",
+                path="$.status",
+                message="json_path 断言失败",
             ),
         ],
     )
@@ -62,8 +70,12 @@ def _failed_result() -> RunResult:
         started_at=datetime(2026, 5, 9, 10, 0, tzinfo=UTC),
         ended_at=datetime(2026, 5, 9, 10, 0, 1, tzinfo=UTC),
         summary=Summary(
-            total_cases=1, failed_cases=1, total_steps=1,
-            failed_steps=1, total_assertions=1, failed_assertions=1,
+            total_cases=1,
+            failed_cases=1,
+            total_steps=1,
+            failed_steps=1,
+            total_assertions=1,
+            failed_assertions=1,
             elapsed_ms=5.0,
         ),
         cases=[case],

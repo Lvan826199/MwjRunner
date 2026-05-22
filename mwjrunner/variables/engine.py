@@ -88,8 +88,7 @@ class VariableEngine:
         except json.JSONDecodeError as exc:
             body_preview = result.response.text[:80] or "(空)"
             message = (
-                f"响应 JSON 解析失败,无法提取变量"
-                f" (status_code={result.response.status_code}, body={body_preview})"
+                f"响应 JSON 解析失败,无法提取变量 (status_code={result.response.status_code}, body={body_preview})"
             )
             if spec.optional:
                 return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
@@ -102,8 +101,13 @@ class VariableEngine:
 
         self.variables[spec.name] = value
         return ExtractResult(
-            name=spec.name, type=spec.type, path=spec.path,
-            value=value, extracted=True, optional=spec.optional, message="变量提取成功",
+            name=spec.name,
+            type=spec.type,
+            path=spec.path,
+            value=value,
+            extracted=True,
+            optional=spec.optional,
+            message="变量提取成功",
         )
 
     def _extract_header(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
@@ -121,8 +125,13 @@ class VariableEngine:
             raise VariableError(message)
         self.variables[spec.name] = value
         return ExtractResult(
-            name=spec.name, type=spec.type, path=spec.path,
-            value=value, extracted=True, optional=spec.optional, message="变量提取成功",
+            name=spec.name,
+            type=spec.type,
+            path=spec.path,
+            value=value,
+            extracted=True,
+            optional=spec.optional,
+            message="变量提取成功",
         )
 
     def _extract_cookie(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
@@ -136,8 +145,13 @@ class VariableEngine:
             raise VariableError(message)
         self.variables[spec.name] = value
         return ExtractResult(
-            name=spec.name, type=spec.type, path=spec.path,
-            value=value, extracted=True, optional=spec.optional, message="变量提取成功",
+            name=spec.name,
+            type=spec.type,
+            path=spec.path,
+            value=value,
+            extracted=True,
+            optional=spec.optional,
+            message="变量提取成功",
         )
 
     def _extract_regex(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
@@ -152,8 +166,13 @@ class VariableEngine:
         value = match.group(1) if match.lastindex and match.lastindex >= 1 else match.group(0)
         self.variables[spec.name] = value
         return ExtractResult(
-            name=spec.name, type=spec.type, path=spec.path,
-            value=value, extracted=True, optional=spec.optional, message="变量提取成功",
+            name=spec.name,
+            type=spec.type,
+            path=spec.path,
+            value=value,
+            extracted=True,
+            optional=spec.optional,
+            message="变量提取成功",
         )
 
     def _render_string(self, value: str) -> Any:
@@ -162,9 +181,11 @@ class VariableEngine:
         if func_matches:
             if len(func_matches) == 1 and func_matches[0].span() == (0, len(value)):
                 return self._call_function(func_matches[0].group(1), func_matches[0].group(2))
+
             # 混合模式：先替换函数调用
             def replace_func(match: re.Match[str]) -> str:
                 return str(self._call_function(match.group(1), match.group(2)))
+
             value = _FUNCTION_PATTERN.sub(replace_func, value)
 
         # 再处理普通变量 ${var_name}

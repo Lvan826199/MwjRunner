@@ -82,6 +82,7 @@ class PipelineRunResponse(BaseModel):
 
 class PipelineTrigger(BaseModel):
     """手动/Webhook 触发。"""
+
     commit_sha: str = ""
     branch: str = ""
     trigger_source: str = "manual"

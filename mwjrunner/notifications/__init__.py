@@ -135,14 +135,16 @@ def parse_notify_configs(data: list[dict[str, Any]] | None) -> list[NotifyConfig
     for item in data:
         if not isinstance(item, dict):
             continue
-        configs.append(NotifyConfig(
-            type=item.get("type", ""),
-            webhook_url=item.get("webhook_url"),
-            smtp_host=item.get("smtp_host"),
-            smtp_port=int(item.get("smtp_port", 465)),
-            smtp_user=item.get("smtp_user"),
-            smtp_password=item.get("smtp_password"),
-            recipients=item.get("recipients", []),
-            subject=item.get("subject", "MwjRunner 执行报告"),
-        ))
+        configs.append(
+            NotifyConfig(
+                type=item.get("type", ""),
+                webhook_url=item.get("webhook_url"),
+                smtp_host=item.get("smtp_host"),
+                smtp_port=int(item.get("smtp_port", 465)),
+                smtp_user=item.get("smtp_user"),
+                smtp_password=item.get("smtp_password"),
+                recipients=item.get("recipients", []),
+                subject=item.get("subject", "MwjRunner 执行报告"),
+            )
+        )
     return configs

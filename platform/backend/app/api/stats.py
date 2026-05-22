@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select, case as sql_case
+from sqlalchemy import case as sql_case
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.users import get_current_user
@@ -27,7 +28,7 @@ async def get_overview(
     user: User = Depends(get_current_user),
 ):
     """总览统计。"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     since = now - timedelta(days=days)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -35,15 +36,14 @@ async def get_overview(
     case_query = select(TestCase)
     case_query = team_filter(case_query, TestCase, user)
 
-    total_cases = await db.scalar(
-        team_filter(select(func.count(TestCase.id)), TestCase, user)
-    )
+    total_cases = await db.scalar(team_filter(select(func.count(TestCase.id)), TestCase, user))
 
     by_priority = {}
     priority_result = await db.execute(
         team_filter(
             select(TestCase.priority, func.count(TestCase.id)).group_by(TestCase.priority),
-            TestCase, user,
+            TestCase,
+            user,
         )
     )
     for row in priority_result.all():
@@ -53,19 +53,21 @@ async def get_overview(
     status_result = await db.execute(
         team_filter(
             select(TestCase.status, func.count(TestCase.id)).group_by(TestCase.status),
-            TestCase, user,
+            TestCase,
+            user,
         )
     )
     for row in status_result.all():
         by_status[row[0]] = row[1]
 
     # 执行统计
-    exec_base = team_filter(select(Execution), Execution, user)
+    team_filter(select(Execution), Execution, user)
 
     today_count = await db.scalar(
         team_filter(
             select(func.count(Execution.id)).where(Execution.started_at >= today_start),
-            Execution, user,
+            Execution,
+            user,
         )
     )
 
@@ -75,7 +77,8 @@ async def get_overview(
             func.sum(sql_case((Execution.status == "passed", 1), else_=0)),
             func.avg(Execution.elapsed_ms),
         ).where(Execution.started_at >= since),
-        Execution, user,
+        Execution,
+        user,
     )
     range_result = await db.execute(range_query)
     row = range_result.one()
@@ -85,18 +88,15 @@ async def get_overview(
     pass_rate = (passed_in_range / total_in_range) if total_in_range > 0 else 0
 
     # 环境数
-    env_count = await db.scalar(
-        team_filter(select(func.count(Environment.id)), Environment, user)
-    )
+    env_count = await db.scalar(team_filter(select(func.count(Environment.id)), Environment, user))
 
     # Pipeline 数
-    pipeline_total = await db.scalar(
-        team_filter(select(func.count(Pipeline.id)), Pipeline, user)
-    )
+    pipeline_total = await db.scalar(team_filter(select(func.count(Pipeline.id)), Pipeline, user))
     pipeline_active = await db.scalar(
         team_filter(
             select(func.count(Pipeline.id)).where(Pipeline.is_active == 1),
-            Pipeline, user,
+            Pipeline,
+            user,
         )
     )
 
@@ -124,7 +124,7 @@ async def get_trend(
     user: User = Depends(get_current_user),
 ):
     """执行趋势数据（按天聚合）。"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     since = now - timedelta(days=days)
 
     query = team_filter(
@@ -138,7 +138,8 @@ async def get_trend(
         .where(Execution.started_at >= since)
         .group_by(func.date(Execution.started_at))
         .order_by(func.date(Execution.started_at)),
-        Execution, user,
+        Execution,
+        user,
     )
     result = await db.execute(query)
 
@@ -146,14 +147,16 @@ async def get_trend(
     for row in result.all():
         total = row[1] or 0
         passed = row[2] or 0
-        trend.append({
-            "date": str(row[0]),
-            "total": total,
-            "passed": passed,
-            "failed": row[3] or 0,
-            "pass_rate": round(passed / total, 3) if total > 0 else 0,
-            "avg_elapsed_ms": round(row[4] or 0, 1),
-        })
+        trend.append(
+            {
+                "date": str(row[0]),
+                "total": total,
+                "passed": passed,
+                "failed": row[3] or 0,
+                "pass_rate": round(passed / total, 3) if total > 0 else 0,
+                "avg_elapsed_ms": round(row[4] or 0, 1),
+            }
+        )
     return {"trend": trend}
 
 
@@ -170,8 +173,8 @@ async def get_tags(
     for row in result.all():
         tags_str = row[0] or ""
         for tag in tags_str.split(","):
-            tag = tag.strip()
-            if tag:
-                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+            stripped = tag.strip()
+            if stripped:
+                tag_counts[stripped] = tag_counts.get(stripped, 0) + 1
 
     return {"tags": [{"name": k, "count": v} for k, v in sorted(tag_counts.items(), key=lambda x: -x[1])]}

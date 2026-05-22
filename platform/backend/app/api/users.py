@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -48,9 +48,9 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     try:
         payload = decode_access_token(token)
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token 已过期")
+        raise HTTPException(status_code=401, detail="Token 已过期") from None
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Token 无效")
+        raise HTTPException(status_code=401, detail="Token 无效") from None
 
     if payload.get("type") != "access":
         raise HTTPException(status_code=401, detail="Token 类型错误")
@@ -64,14 +64,17 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
 
 def require_role(*roles: str):
     """角色校验依赖工厂。"""
+
     async def checker(user: User = Depends(get_current_user)):
         if user.role not in roles:
             raise HTTPException(status_code=403, detail="权限不足")
         return user
+
     return checker
 
 
 # ===== 认证 =====
+
 
 @router.post("/api/auth/login", response_model=LoginResponse)
 async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
@@ -101,7 +104,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
         for t in active_tokens[MAX_REFRESH_TOKENS_PER_USER:]:
             t.revoked = 1
 
-    user.last_login_at = datetime.now(timezone.utc)
+    user.last_login_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(user)
 
@@ -118,9 +121,9 @@ async def refresh(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
     try:
         payload = decode_refresh_token(data.refresh_token)
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Refresh Token 已过期")
+        raise HTTPException(status_code=401, detail="Refresh Token 已过期") from None
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Refresh Token 无效")
+        raise HTTPException(status_code=401, detail="Refresh Token 无效") from None
 
     if payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Token 类型错误")
@@ -162,9 +165,7 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
             # 吊销该用户最近的一个 Refresh Token
             user_id = int(payload["sub"])
             await db.execute(
-                update(RefreshToken)
-                .where(RefreshToken.user_id == user_id, RefreshToken.revoked == 0)
-                .values(revoked=1)
+                update(RefreshToken).where(RefreshToken.user_id == user_id, RefreshToken.revoked == 0).values(revoked=1)
             )
             await db.commit()
         except jwt.InvalidTokenError:
@@ -176,9 +177,7 @@ async def logout(request: Request, db: AsyncSession = Depends(get_db)):
 async def logout_all(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """登出所有设备，吊销该用户所有 Refresh Token。"""
     await db.execute(
-        update(RefreshToken)
-        .where(RefreshToken.user_id == user.id, RefreshToken.revoked == 0)
-        .values(revoked=1)
+        update(RefreshToken).where(RefreshToken.user_id == user.id, RefreshToken.revoked == 0).values(revoked=1)
     )
     await db.commit()
     return {"status": "ok"}
@@ -196,9 +195,7 @@ async def change_password(
     user.password_hash = hash_password(data.new_password)
     # 吊销所有 Refresh Token
     await db.execute(
-        update(RefreshToken)
-        .where(RefreshToken.user_id == user.id, RefreshToken.revoked == 0)
-        .values(revoked=1)
+        update(RefreshToken).where(RefreshToken.user_id == user.id, RefreshToken.revoked == 0).values(revoked=1)
     )
     await db.commit()
     return {"status": "ok", "message": "密码修改成功，请重新登录"}
@@ -211,6 +208,7 @@ async def get_me(user: User = Depends(get_current_user)):
 
 
 # ===== 用户管理（仅 admin） =====
+
 
 @router.get("/api/users", response_model=list[UserResponse])
 async def list_users(
@@ -279,6 +277,7 @@ async def delete_user(
 
 
 # ===== 团队管理（仅 admin） =====
+
 
 @router.get("/api/teams", response_model=list[TeamResponse])
 async def list_teams(db: AsyncSession = Depends(get_db)):

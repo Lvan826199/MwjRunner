@@ -24,7 +24,7 @@ from app.core.database import init_db
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """应用生命周期：启动时初始化数据库。"""
     await init_db()
     yield

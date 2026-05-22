@@ -1,7 +1,5 @@
 """CI/CD Pipeline 数据模型。"""
 
-from datetime import datetime
-
 from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.sql import func
 

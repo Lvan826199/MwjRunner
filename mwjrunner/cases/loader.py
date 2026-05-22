@@ -303,9 +303,7 @@ def _optional_data_list(raw: dict[str, Any], key: str, source_file: str) -> list
         raise _error(source_file, key, f"{key} 必须是列表。", "请使用 data: [{...}, {...}] 格式。")
     for index, item in enumerate(value):
         if not isinstance(item, dict):
-            raise _error(
-                source_file, f"{key}[{index}]", "data 每条记录必须是对象。", "请使用 {key: value} 格式。"
-            )
+            raise _error(source_file, f"{key}[{index}]", "data 每条记录必须是对象。", "请使用 {key: value} 格式。")
     return value
 
 
@@ -319,7 +317,8 @@ def _optional_hooks(raw: dict[str, Any], key: str, source_file: str) -> dict[str
     for hook_key, hook_value in value.items():
         if hook_key not in valid_keys:
             raise _error(
-                source_file, f"{key}.{hook_key}",
+                source_file,
+                f"{key}.{hook_key}",
                 f"不支持的 hook 类型: {hook_key}。",
                 f"支持的类型: {', '.join(sorted(valid_keys))}。",
             )
@@ -328,7 +327,8 @@ def _optional_hooks(raw: dict[str, Any], key: str, source_file: str) -> dict[str
         if isinstance(hook_value, list) and all(isinstance(v, str) for v in hook_value):
             continue
         raise _error(
-            source_file, f"{key}.{hook_key}",
+            source_file,
+            f"{key}.{hook_key}",
             "hook 值必须是字符串或字符串列表。",
             "请使用模块路径,例如 myproject.hooks.setup。",
         )
@@ -344,7 +344,8 @@ def _optional_auth(raw: dict[str, Any], key: str, source_file: str) -> dict[str,
     auth_type = value.get("type")
     if auth_type not in ("bearer", "basic"):
         raise _error(
-            source_file, f"{key}.type",
+            source_file,
+            f"{key}.type",
             f"不支持的认证类型: {auth_type}。",
             "支持的类型: bearer, basic。",
         )

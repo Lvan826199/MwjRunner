@@ -2,7 +2,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.core import DATABASE_URL, DATA_DIR
+from app.core import DATA_DIR, DATABASE_URL
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -13,7 +13,8 @@ async_session_factory = async_session  # alias for background tasks
 
 async def init_db():
     """创建所有表。"""
-    from app.models import Base
+    from app.models import Base  # noqa: PLC0415
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

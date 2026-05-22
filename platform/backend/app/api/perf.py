@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from datetime import datetime
 
@@ -62,10 +63,8 @@ async def create_baseline(
 
     # 将 baseline 信息追加到 error_distribution（JSON 扩展）
     existing = {}
-    try:
+    with contextlib.suppress(json.JSONDecodeError):
         existing = json.loads(bench.error_distribution or "{}")
-    except json.JSONDecodeError:
-        pass
     existing["_baseline"] = baseline_meta
     bench.error_distribution = json.dumps(existing)
     await db.commit()
@@ -86,7 +85,8 @@ async def list_baselines(db: AsyncSession = Depends(get_db), user: User = Depend
     """获取所有性能基线。"""
     query = team_filter(
         select(Benchmark).where(Benchmark.status == "completed"),
-        Benchmark, user,
+        Benchmark,
+        user,
     )
     result = await db.execute(query)
     benchmarks = result.scalars().all()
@@ -98,16 +98,18 @@ async def list_baselines(db: AsyncSession = Depends(get_db), user: User = Depend
         except json.JSONDecodeError:
             continue
         if meta.get("_baseline", {}).get("is_baseline"):
-            baselines.append({
-                "id": b.id,
-                "name": meta["_baseline"].get("baseline_name", ""),
-                "target_url": b.target_url,
-                "avg_latency_ms": b.avg_latency_ms,
-                "p95_latency_ms": b.p95_latency_ms,
-                "p99_latency_ms": b.p99_latency_ms,
-                "rps": b.rps,
-                "created_at": meta["_baseline"].get("set_at", ""),
-            })
+            baselines.append(
+                {
+                    "id": b.id,
+                    "name": meta["_baseline"].get("baseline_name", ""),
+                    "target_url": b.target_url,
+                    "avg_latency_ms": b.avg_latency_ms,
+                    "p95_latency_ms": b.p95_latency_ms,
+                    "p99_latency_ms": b.p99_latency_ms,
+                    "rps": b.rps,
+                    "created_at": meta["_baseline"].get("set_at", ""),
+                }
+            )
     return baselines
 
 
@@ -133,36 +135,32 @@ async def compare_performance(
     regression = False
 
     metrics = [
-        ("avg_latency_ms", "平均延迟", True),   # True = 越大越差
+        ("avg_latency_ms", "平均延迟", True),  # True = 越大越差
         ("p95_latency_ms", "P95 延迟", True),
         ("p99_latency_ms", "P99 延迟", True),
-        ("rps", "RPS", False),                    # False = 越小越差
+        ("rps", "RPS", False),  # False = 越小越差
     ]
 
     for attr, label, higher_is_worse in metrics:
         base_val = getattr(baseline, attr) or 0
         curr_val = getattr(current, attr) or 0
 
-        if base_val == 0:
-            change_pct = 0
-        else:
-            change_pct = (curr_val - base_val) / base_val
+        change_pct = 0 if base_val == 0 else (curr_val - base_val) / base_val
 
         is_regression = False
-        if higher_is_worse and change_pct > threshold:
-            is_regression = True
-            regression = True
-        elif not higher_is_worse and change_pct < -threshold:
+        if (higher_is_worse and change_pct > threshold) or (not higher_is_worse and change_pct < -threshold):
             is_regression = True
             regression = True
 
-        details.append({
-            "metric": label,
-            "baseline": round(base_val, 2),
-            "current": round(curr_val, 2),
-            "change_pct": round(change_pct * 100, 1),
-            "regression": is_regression,
-        })
+        details.append(
+            {
+                "metric": label,
+                "baseline": round(base_val, 2),
+                "current": round(curr_val, 2),
+                "change_pct": round(change_pct * 100, 1),
+                "regression": is_regression,
+            }
+        )
 
     return {
         "baseline": {"id": baseline.id, "name": baseline.name},
@@ -182,11 +180,9 @@ async def perf_history(
 ):
     """获取某目标 URL 的性能历史趋势。"""
     query = team_filter(
-        select(Benchmark)
-        .where(Benchmark.status == "completed")
-        .order_by(Benchmark.id.desc())
-        .limit(limit),
-        Benchmark, user,
+        select(Benchmark).where(Benchmark.status == "completed").order_by(Benchmark.id.desc()).limit(limit),
+        Benchmark,
+        user,
     )
     if target_url:
         query = query.where(Benchmark.target_url == target_url)

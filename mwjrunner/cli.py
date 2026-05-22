@@ -132,10 +132,7 @@ def handle_init(args: argparse.Namespace) -> int:
             "# report_dir: reports\n"
         ),
         target / "envs" / "dev.yaml": (
-            "# 开发环境配置\n"
-            "base_url: http://localhost:8000\n"
-            "variables:\n"
-            "  env_name: dev\n"
+            "# 开发环境配置\nbase_url: http://localhost:8000\nvariables:\n  env_name: dev\n"
         ),
         target / "cases" / "example.yaml": (
             "name: 示例用例\n"

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any
 
 from mwjrunner.protocols import (
     ProtocolAdapter,
@@ -33,7 +32,7 @@ class WebSocketAdapter(ProtocolAdapter):
         - send: 连接、发送消息、关闭（不等待响应）
         """
         try:
-            import websockets.sync.client as ws_client
+            import websockets.sync.client as ws_client  # noqa: PLC0415
         except ImportError:
             return ProtocolResult(
                 request=request,

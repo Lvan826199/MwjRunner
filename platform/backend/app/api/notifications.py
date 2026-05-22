@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import smtplib
 from email.mime.text import MIMEText
-from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends
@@ -42,14 +40,13 @@ class NotifyTestRequest(BaseModel):
 
 
 @router.post("/send")
-async def send_notification(payload: NotifyPayload, user: User = Depends(get_current_user)):
+async def send_notification(payload: NotifyPayload, _user: User = Depends(get_current_user)):
     """发送通知。"""
-    result = await dispatch_notification(payload)
-    return result
+    return await dispatch_notification(payload)
 
 
 @router.post("/test")
-async def test_notification(data: NotifyTestRequest, user: User = Depends(get_current_user)):
+async def test_notification(data: NotifyTestRequest, _user: User = Depends(get_current_user)):
     """测试通知通道连通性。"""
     payload = NotifyPayload(
         channel=data.channel,
@@ -62,19 +59,22 @@ async def test_notification(data: NotifyTestRequest, user: User = Depends(get_cu
         title="[MwjRunner] 通知测试",
         content="这是一条测试通知，如果您收到此消息说明通知通道配置正确。",
     )
-    result = await dispatch_notification(payload)
-    return result
+    return await dispatch_notification(payload)
 
 
 @router.get("/channels")
-async def list_channels(user: User = Depends(get_current_user)):
+async def list_channels(_user: User = Depends(get_current_user)):
     """获取支持的通知通道列表。"""
     return {
         "channels": [
             {"id": "dingtalk", "name": "钉钉机器人", "config_fields": ["webhook_url"]},
             {"id": "feishu", "name": "飞书机器人", "config_fields": ["webhook_url"]},
             {"id": "slack", "name": "Slack Webhook", "config_fields": ["webhook_url"]},
-            {"id": "email", "name": "邮件", "config_fields": ["smtp_host", "smtp_port", "smtp_user", "smtp_pass", "to_emails"]},
+            {
+                "id": "email",
+                "name": "邮件",
+                "config_fields": ["smtp_host", "smtp_port", "smtp_user", "smtp_pass", "to_emails"],
+            },
         ]
     }
 
@@ -84,14 +84,13 @@ async def dispatch_notification(payload: NotifyPayload) -> dict:
     try:
         if payload.channel == "dingtalk":
             return await _send_dingtalk(payload)
-        elif payload.channel == "feishu":
+        if payload.channel == "feishu":
             return await _send_feishu(payload)
-        elif payload.channel == "slack":
+        if payload.channel == "slack":
             return await _send_slack(payload)
-        elif payload.channel == "email":
+        if payload.channel == "email":
             return await _send_email(payload)
-        else:
-            return {"success": False, "error": f"不支持的通道: {payload.channel}"}
+        return {"success": False, "error": f"不支持的通道: {payload.channel}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

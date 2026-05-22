@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -14,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.users import get_current_user
+from app.api.ws import notify_execution_created, notify_execution_update
 from app.core import STORAGE_DIR
 from app.core.database import async_session, get_db
 from app.core.permissions import check_resource_access, team_filter
@@ -21,7 +21,6 @@ from app.models.case import TestCase
 from app.models.execution import Execution
 from app.models.user import User
 from app.schemas.execution import ExecutionCreate, ExecutionListResponse, ExecutionResponse
-from app.api.ws import notify_execution_created, notify_execution_update
 
 router = APIRouter(prefix="/api/executions", tags=["执行管理"])
 
@@ -45,8 +44,7 @@ async def list_executions(
 @router.get("/{execution_id}", response_model=ExecutionResponse)
 async def get_execution(execution_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     """获取执行详情。"""
-    execution = await check_resource_access(db, Execution, execution_id, user)
-    return execution
+    return await check_resource_access(db, Execution, execution_id, user)
 
 
 @router.post("", response_model=ExecutionResponse, status_code=201)
@@ -112,7 +110,9 @@ async def create_execution(
 
 
 @router.get("/{execution_id}/report")
-async def get_execution_report(execution_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def get_execution_report(
+    execution_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
     """获取执行的 JSON 报告。"""
     execution = await check_resource_access(db, Execution, execution_id, user)
     if not execution.report_dir:
@@ -130,10 +130,10 @@ async def get_execution_report(execution_id: int, db: AsyncSession = Depends(get
     try:
         return json.loads(json_files[0].read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
-        raise HTTPException(status_code=500, detail=f"报告解析失败: {exc}")
+        raise HTTPException(status_code=500, detail=f"报告解析失败: {exc}") from exc
 
 
-async def _run_engine_task(
+async def _run_engine_task(  # noqa: PLR0912 PLR0915
     execution_id: int,
     case_path: str,
     base_url: str,
@@ -167,7 +167,7 @@ async def _run_engine_task(
         exit_code = process.returncode or 0
         stdout_text = stdout.decode("utf-8", errors="replace")
         stderr_text = stderr.decode("utf-8", errors="replace")
-    except asyncio.TimeoutError:
+    except TimeoutError:
         exit_code = -1
         stdout_text = ""
         stderr_text = "执行超时（600秒）"
@@ -210,7 +210,9 @@ async def _run_engine_task(
 
             # WebSocket 通知执行完成
             await notify_execution_update(
-                execution_id, status, execution.team_id,
+                execution_id,
+                status,
+                execution.team_id,
                 passed_cases=execution.passed_cases,
                 failed_cases=execution.failed_cases,
                 elapsed_ms=execution.elapsed_ms,

@@ -252,14 +252,14 @@ def _generate_example_from_schema(schema: dict[str, Any], spec: dict[str, Any]) 
         return None
 
     result: dict[str, Any] = {}
-    for prop_name, prop_schema in properties.items():
-        prop_schema = _resolve_ref(prop_schema, spec)
-        result[prop_name] = _generate_value(prop_name, prop_schema)
+    for prop_name, raw_schema in properties.items():
+        resolved_schema = _resolve_ref(raw_schema, spec)
+        result[prop_name] = _generate_value(prop_name, resolved_schema)
 
     return result
 
 
-def _generate_value(name: str, schema: dict[str, Any]) -> Any:
+def _generate_value(name: str, schema: dict[str, Any]) -> Any:  # noqa: PLR0911
     """根据 schema 类型生成示例值。"""
     example = schema.get("example")
     if example is not None:
@@ -274,7 +274,7 @@ def _generate_value(name: str, schema: dict[str, Any]) -> Any:
             return "2026-01-01T00:00:00Z"
         if fmt == "date":
             return "2026-01-01"
-        if fmt == "uri" or fmt == "url":
+        if fmt in {"uri", "url"}:
             return "https://example.com"
         return f"${{{name}}}"
     if schema_type == "integer":

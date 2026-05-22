@@ -33,7 +33,7 @@ def import_postman_collection(
     items = data.get("item", [])
 
     generated: list[Path] = []
-    _process_items(items, output_dir, generated, prefix="")
+    _process_items(items, output_dir, generated, "")
     return generated
 
 
@@ -64,7 +64,7 @@ def _process_items(
     items: list[dict[str, Any]],
     output_dir: Path,
     generated: list[Path],
-    prefix: str,
+    _prefix: str,
 ) -> None:
     """递归处理 Postman items（支持文件夹嵌套）。"""
     for item in items:
@@ -73,7 +73,7 @@ def _process_items(
             folder_name = _safe_filename(item.get("name", "folder"))
             sub_dir = output_dir / folder_name
             sub_dir.mkdir(parents=True, exist_ok=True)
-            _process_items(item["item"], sub_dir, generated, prefix=folder_name + "/")
+            _process_items(item["item"], sub_dir, generated, folder_name + "/")
         elif "request" in item:
             # 单个请求
             yaml_content = _convert_request_to_case(item)
@@ -176,9 +176,8 @@ def _parse_body(body: dict[str, Any] | None) -> dict[str, Any] | None:
     if mode == "formdata":
         data = {}
         for item in body.get("formdata", []):
-            if isinstance(item, dict) and not item.get("disabled", False):
-                if item.get("type") == "text":
-                    data[item.get("key", "")] = item.get("value", "")
+            if isinstance(item, dict) and not item.get("disabled", False) and item.get("type") == "text":
+                data[item.get("key", "")] = item.get("value", "")
         return {"data": data} if data else None
 
     return None
