@@ -160,13 +160,32 @@ def _assertion_to_dict(assertion: AssertionResult) -> dict[str, Any]:
     return {
         "type": assertion.type,
         "passed": assertion.passed,
-        "expected": REDACTED if sensitive_result else redact_value(assertion.expected),
-        "actual": REDACTED if sensitive_result else redact_value(assertion.actual),
+        "expected": REDACTED if sensitive_result else _redact_field_value(assertion.expected),
+        "actual": REDACTED if sensitive_result else _redact_field_value(assertion.actual),
         "path": assertion.path,
         "target": assertion.target,
         "mode": assertion.mode,
-        "message": redact_text(assertion.message),
+        "message": _redact_assertion_message(assertion, sensitive_result),
     }
+
+
+def _redact_field_value(value: Any) -> Any:
+    """脱敏断言的 expected/actual 值；字符串可能内嵌 JSON 响应体，走 redact_body。"""
+    if isinstance(value, str):
+        redacted = redact_body(value)
+        return redacted if isinstance(redacted, str) else value
+    return redact_value(value)
+
+
+def _redact_assertion_message(assertion: AssertionResult, sensitive_result: bool) -> str:
+    """脱敏断言 message；path/target 敏感时同时清除内嵌的 expected/actual 原始值。"""
+    message = redact_text(assertion.message)
+    if sensitive_result:
+        for raw in (assertion.actual, assertion.expected):
+            raw_text = str(raw) if raw is not None else ""
+            if raw_text and raw_text in message:
+                message = message.replace(raw_text, REDACTED)
+    return message
 
 
 def _extract_to_dict(extract: ExtractResult) -> dict[str, Any]:

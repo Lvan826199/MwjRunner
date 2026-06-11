@@ -1,6 +1,7 @@
 @echo off
 REM MwjRunner 示例一键运行脚本（Windows）
-REM 用途：启动 FastAPI 示例服务，运行所有示例用例，生成报告，停止服务
+REM 用途：启动 FastAPI 示例服务，运行主要示例用例（基础/数据驱动/断言/提取器/认证/变量函数，
+REM       不含 advanced/ 和 hooks/ 演示用例），生成报告，停止服务
 
 setlocal EnableDelayedExpansion
 
@@ -23,7 +24,7 @@ timeout /t 5 /nobreak > nul
 curl -sf http://127.0.0.1:8000/health > nul 2>&1
 if errorlevel 1 (
     echo   ERROR: 示例服务启动失败
-    taskkill /F /IM python.exe > nul 2>&1
+    call :stop_server
     exit /b 1
 )
 echo   服务已就绪 → http://127.0.0.1:8000
@@ -56,8 +57,14 @@ echo --- 运行变量函数示例 ---
 uv run mwjrunner run examples/cases/variables/ --base-url http://127.0.0.1:8000 --report console,json,html
 
 echo [4/4] 停止示例服务...
-taskkill /F /IM python.exe > nul 2>&1
+call :stop_server
 echo   服务已停止
 
 echo.
 echo === 完成！报告已生成到 reports/ 目录 ===
+exit /b 0
+
+REM 按命令行精确终止 uvicorn 示例服务进程，避免误杀其他 Python 进程
+:stop_server
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'uvicorn app\.main:app' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" > nul 2>&1
+exit /b 0

@@ -11,9 +11,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 from mwjrunner.protocols import (
     ProtocolAdapter,
@@ -101,7 +103,7 @@ class GrpcAdapter(ProtocolAdapter):
                         creds = grpc.ssl_channel_credentials(f.read())
                 else:
                     creds = grpc.ssl_channel_credentials()
-                channel = grpc.insecure_channel(host) if not use_tls else grpc.secure_channel(host, creds)
+                channel = grpc.secure_channel(host, creds)
             else:
                 channel = grpc.insecure_channel(host)
         except Exception as e:
@@ -114,21 +116,20 @@ class GrpcAdapter(ProtocolAdapter):
         try:
             reflection_stub = reflection_pb2_grpc.ServerReflectionStub(channel)
 
-            # 获取文件描述
+            # 获取文件描述（响应包含目标文件及其全部传递依赖，必须全部收集）
             file_by_symbol_request = reflection_pb2.ServerReflectionRequest(file_containing_symbol=full_service_name)
             responses = reflection_stub.ServerReflectionInfo(iter([file_by_symbol_request]))
-            file_descriptor_proto = None
+            file_descriptors: list[Any] = []
 
             for resp in responses:
                 if resp.HasField("file_descriptor_response"):
                     for fd_bytes in resp.file_descriptor_response.file_descriptor_proto:
                         fd_proto = descriptor_pb2.FileDescriptorProto()
                         fd_proto.ParseFromString(fd_bytes)
-                        file_descriptor_proto = fd_proto
-                        break
+                        file_descriptors.append(fd_proto)
                 break
 
-            if not file_descriptor_proto:
+            if not file_descriptors:
                 # Fallback: 使用通用 JSON 调用
                 return self._generic_call(
                     channel,
@@ -140,9 +141,25 @@ class GrpcAdapter(ProtocolAdapter):
                     start,
                 )
 
-            # 从描述中找到方法
+            # 按依赖顺序注册全部文件描述（依赖必须先于使用方加入 pool）
             pool = descriptor_pool.DescriptorPool()
-            pool.Add(file_descriptor_proto)
+            pending = {fd.name: fd for fd in file_descriptors}
+            while pending:
+                progressed = False
+                for fd_name in list(pending):
+                    fd = pending[fd_name]
+                    if all(dep not in pending for dep in fd.dependency):
+                        # 重复/冲突描述跳过
+                        with contextlib.suppress(Exception):
+                            pool.Add(fd)
+                        del pending[fd_name]
+                        progressed = True
+                if not progressed:
+                    # 存在循环或缺失依赖，按原顺序兜底添加
+                    for fd in pending.values():
+                        with contextlib.suppress(Exception):
+                            pool.Add(fd)
+                    break
 
             service_desc = pool.FindServiceByName(full_service_name)
             method_desc = service_desc.FindMethodByName(method_name)

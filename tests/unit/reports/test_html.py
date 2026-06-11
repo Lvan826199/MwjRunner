@@ -122,7 +122,7 @@ def test_html_reporter_escapes_xss_payload() -> None:
     assert "</script>alert" not in output
     # 用户可控数据在 JSON 中以字符串形式存在，由 JS 渲染时通过 esc() 函数转义
     assert "alert" in output  # 数据在 JSON 中保留原始值（引号被 JSON 转义）
-    assert "<\\/script>" in output  # </script> 被转义
+    assert "\\u003c/script>" in output  # </script> 的 "<" 被转义为 \\u003c
 
 
 def test_html_reporter_renders_failed_case_data() -> None:

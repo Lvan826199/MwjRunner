@@ -10,6 +10,7 @@ from typing import Any
 from mwjrunner.assertions.builtin import resolve_json_path
 from mwjrunner.cases.model import ExtractSpec
 from mwjrunner.http.model import HttpResult
+from mwjrunner.utils.masking import redact_text
 from mwjrunner.variables.functions import FunctionRegistry, create_default_function_registry
 
 _VARIABLE_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
@@ -86,7 +87,7 @@ class VariableEngine:
         try:
             value = resolve_json_path(result.response.json(), spec.path)
         except json.JSONDecodeError as exc:
-            body_preview = result.response.text[:80] or "(空)"
+            body_preview = redact_text(result.response.text[:80]) or "(空)"
             message = (
                 f"响应 JSON 解析失败,无法提取变量 (status_code={result.response.status_code}, body={body_preview})"
             )
@@ -157,13 +158,27 @@ class VariableEngine:
     def _extract_regex(self, spec: ExtractSpec, result: HttpResult) -> ExtractResult:
         """从响应体正则提取。path 为正则表达式，第一个捕获组为提取值。"""
         text = result.response.text
-        match = re.search(spec.path, text)
+        try:
+            match = re.search(spec.path, text)
+        except re.error as exc:
+            message = f"正则表达式无效: {spec.path} - {exc}"
+            if spec.optional:
+                return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
+            raise VariableError(message) from exc
         if match is None:
             message = f"正则表达式未匹配: {spec.path}"
             if spec.optional:
                 return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
             raise VariableError(message)
-        value = match.group(1) if match.lastindex and match.lastindex >= 1 else match.group(0)
+        if match.re.groups >= 1:
+            value = match.group(1)
+            if value is None:
+                message = f"正则第一个捕获组未参与匹配: {spec.path}"
+                if spec.optional:
+                    return ExtractResult(spec.name, spec.type, spec.path, optional=True, message=message)
+                raise VariableError(message)
+        else:
+            value = match.group(0)
         self.variables[spec.name] = value
         return ExtractResult(
             name=spec.name,
@@ -191,6 +206,7 @@ class VariableEngine:
         # 再处理普通变量 ${var_name}
         matches = list(_VARIABLE_PATTERN.finditer(value))
         if not matches:
+            self._ensure_no_unresolved_expression(value)
             return value
         if len(matches) == 1 and matches[0].span() == (0, len(value)):
             return self._get_variable(matches[0].group(1))
@@ -198,11 +214,23 @@ class VariableEngine:
         def replace_var(match: re.Match[str]) -> str:
             return str(self._get_variable(match.group(1)))
 
-        return _VARIABLE_PATTERN.sub(replace_var, value)
+        rendered = _VARIABLE_PATTERN.sub(replace_var, value)
+        self._ensure_no_unresolved_expression(rendered)
+        return rendered
+
+    @staticmethod
+    def _ensure_no_unresolved_expression(value: str) -> None:
+        """检测渲染后仍残留的 ${...} 表达式，避免拼写错误被静默原样发出。"""
+        leftover = _ANY_EXPR_PATTERN.search(value)
+        if leftover:
+            raise VariableError(
+                f"无法解析的变量表达式: {leftover.group(0)} "
+                "(变量名仅支持字母、数字和下划线; 内置函数需以 __ 开头并带括号)"
+            )
 
     def _call_function(self, name: str, args_str: str) -> Any:
         """调用内置函数。"""
-        args = [a.strip() for a in args_str.split(",") if a.strip()] if args_str.strip() else []
+        args = _parse_function_args(args_str)
         try:
             return self._functions.call(name, args)
         except (ValueError, TypeError) as exc:
@@ -212,3 +240,39 @@ class VariableEngine:
         if name not in self.variables:
             raise VariableError(f"变量未定义: {name}")
         return self.variables[name]
+
+
+def _parse_function_args(args_str: str) -> list[str]:
+    """解析内置函数参数。
+
+    按未被引号包裹的逗号切分，保留空位（让函数走默认值），
+    剥离参数两侧成对的引号（引号内可包含逗号和空格）。
+    """
+    if not args_str.strip():
+        return []
+
+    parts: list[str] = []
+    current: list[str] = []
+    quote: str | None = None
+    for char in args_str:
+        if quote is not None:
+            current.append(char)
+            if char == quote:
+                quote = None
+        elif char in ("'", '"'):
+            current.append(char)
+            quote = char
+        elif char == ",":
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(char)
+    parts.append("".join(current))
+
+    args: list[str] = []
+    for raw in parts:
+        arg = raw.strip()
+        if len(arg) >= 2 and arg[0] == arg[-1] and arg[0] in ("'", '"'):
+            arg = arg[1:-1]
+        args.append(arg)
+    return args

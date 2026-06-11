@@ -65,7 +65,7 @@ uv run mwjrunner run examples/cases/quickstart_httpbin.yaml --base-url https://h
 
 1. **先跑通示例**：执行上面的 3 条命令，确认本机 Python、UV 和 MwjRunner 可用。
 2. **复制一个 YAML 用例**：从 `examples/cases/quickstart_httpbin.yaml` 复制出自己的用例文件。
-3. **改请求地址和断言**：把 `request.method`、`request.url`、`params/json/body` 和 `assertions` 改成你的接口。
+3. **改请求地址和断言**：把 `request.method`、`request.url`、`query/json/body` 和 `assertions` 改成你的接口。
 4. **接入自己的服务**：使用 `--base-url https://your-api.com` 指向真实接口环境。
 5. **需要报告时再加参数**：用 `--report console,json,html` 生成终端、JSON 和 HTML 报告。
 

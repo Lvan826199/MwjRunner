@@ -278,8 +278,12 @@ const REPORT_DATA = "__REPORT_DATA_PLACEHOLDER__";
     var h = '<div class="section-header">用例详情</div>';
     return h + cases.map(renderCase).join('');
   }
+  /* status 白名单：用于拼接 class 属性，防止外部改写报告数据注入 HTML */
+  function safeStatus(status) {
+    return ['passed','failed','error','skipped'].indexOf(status) >= 0 ? status : 'error';
+  }
   function renderCase(c) {
-    var status = c.status||'passed';
+    var status = safeStatus(c.status||'passed');
     var openAttr = status!=='passed'?' open':'';
     var steps = (c.steps||[]).map(renderStep).join('');
     var errors = renderCaseErrors(c.errors||[]);
@@ -296,7 +300,7 @@ const REPORT_DATA = "__REPORT_DATA_PLACEHOLDER__";
 
   /* Steps */
   function renderStep(step) {
-    var status = step.status||'passed';
+    var status = safeStatus(step.status||'passed');
     var elapsed = (step.elapsed_ms||0).toFixed(1);
     var openAttr = status!=='passed'?' open':'';
     var body = renderRequest(step.request)+renderResponse(step.response)

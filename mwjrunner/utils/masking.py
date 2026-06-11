@@ -18,10 +18,17 @@ SENSITIVE_KEYS = (
     "secret",
     "cookie",
     "set_cookie",
+    "api_key",
+    "apikey",
 )
 
+# 同时匹配裸键（token: abc / token=abc）和 JSON 引号键（"token": "abc"），
+# 值支持带引号字符串、Bearer 前缀和裸值。
 _TEXT_PATTERNS = tuple(
-    re.compile(rf"(?i)({key.replace('_', '[-_]?')}\s*[:=]\s*)(Bearer\s+[^\s,;&]+|[^\s,;&]+)") for key in SENSITIVE_KEYS
+    re.compile(
+        rf"(?i)(\"?{key.replace('_', '[-_]?')}\"?\s*[:=]\s*)" r'("(?:[^"\\]|\\.)*"|Bearer\s+[^\s,;&]+|[^\s,;&]+)'
+    )
+    for key in SENSITIVE_KEYS
 )
 
 
@@ -31,11 +38,18 @@ def is_sensitive_key(key: str) -> bool:
     return any(sensitive_key in normalized_key for sensitive_key in SENSITIVE_KEYS)
 
 
+def _redact_text_match(match: re.Match[str]) -> str:
+    prefix, value = match.group(1), match.group(2)
+    if value.startswith('"'):
+        return f'{prefix}"{REDACTED}"'
+    return f"{prefix}{REDACTED}"
+
+
 def redact_text(text: str) -> str:
-    """脱敏字符串中的常见 key=value 和 key: value 片段。"""
+    """脱敏字符串中的常见 key=value、key: value 和 "key": "value" 片段。"""
     redacted = text
     for pattern in _TEXT_PATTERNS:
-        redacted = pattern.sub(rf"\1{REDACTED}", redacted)
+        redacted = pattern.sub(_redact_text_match, redacted)
     return redacted
 
 
@@ -65,14 +79,25 @@ def redact_cookies(cookies: Mapping[str, Any]) -> dict[str, str]:
 
 
 def redact_url(url: str) -> str:
-    """脱敏 URL 查询参数。"""
+    """脱敏 URL 查询参数和 userinfo 中的密码。"""
     parts = urlsplit(url)
-    if not parts.query:
-        return url
 
-    redacted_pairs = [(key, redact_value(value, key)) for key, value in parse_qsl(parts.query, keep_blank_values=True)]
-    redacted_query = urlencode(redacted_pairs, doseq=True)
-    return urlunsplit((parts.scheme, parts.netloc, parts.path, redacted_query, parts.fragment))
+    netloc = parts.netloc
+    if parts.password is not None:
+        host_port = parts.hostname or ""
+        if parts.port is not None:
+            host_port = f"{host_port}:{parts.port}"
+        username = parts.username or ""
+        netloc = f"{username}:{REDACTED}@{host_port}"
+
+    query = parts.query
+    if query:
+        redacted_pairs = [(key, redact_value(value, key)) for key, value in parse_qsl(query, keep_blank_values=True)]
+        query = urlencode(redacted_pairs, doseq=True)
+
+    if netloc == parts.netloc and query == parts.query:
+        return url
+    return urlunsplit((parts.scheme, netloc, parts.path, query, parts.fragment))
 
 
 def redact_body(body: str | bytes) -> str | bytes:

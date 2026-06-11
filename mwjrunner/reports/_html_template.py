@@ -17,7 +17,8 @@ def render_html_report(data: dict[str, Any]) -> str:
     对 JSON 中的 </script> 进行转义，防止提前关闭 script 标签。
     """
     template = _TEMPLATE_PATH.read_text(encoding="utf-8")
-    json_str = json.dumps(data, ensure_ascii=False)
-    # 防止 JSON 内容中的 </script> 破坏 HTML 结构
-    json_str = json_str.replace("</", "<\\/")
+    json_str = json.dumps(data, ensure_ascii=False, default=str)
+    # JSON 中 "<" 只会出现在字符串里，统一转义为 unicode 形式（JSON 字符串内合法转义），
+    # 防止 </script>、<script、<!-- 等序列破坏 HTML script 解析状态
+    json_str = json_str.replace("<", "\\u003c")
     return template.replace(_PLACEHOLDER, json_str, 1)

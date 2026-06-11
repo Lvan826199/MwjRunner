@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from mwjrunner.cases import load_yaml_case
+from mwjrunner.cases.model import RequestSpec
 from mwjrunner.http import HttpExecutor
 
 
@@ -252,3 +253,29 @@ steps:
         body = executor._redact_response_body(response).decode("utf-8")
 
         assert body == "token=***REDACTED***&username=admin"
+
+
+class TestT70Fixes:
+    """T70 隐藏 bug 修复回归测试。"""
+
+    def test_build_url_preserves_base_path_prefix(self) -> None:
+        """base_url 带路径前缀时拼接不再丢失前缀。"""
+        executor = HttpExecutor(base_url="http://host:8000/api/v1")
+        assert executor._build_url("/users") == "http://host:8000/api/v1/users"
+        assert executor._build_url("users") == "http://host:8000/api/v1/users"
+
+    def test_build_url_passes_through_absolute_url(self) -> None:
+        executor = HttpExecutor(base_url="http://host:8000/api/v1")
+        assert executor._build_url("https://other.example.com/x") == "https://other.example.com/x"
+
+    def test_timeout_zero_not_replaced_by_default(self) -> None:
+        executor = HttpExecutor(base_url="http://host")
+        snapshot = executor._build_request_snapshot(RequestSpec(method="GET", url="/x", timeout=0))
+        assert snapshot.timeout == 0
+
+    def test_default_headers_merged_request_wins(self) -> None:
+        executor = HttpExecutor(default_headers={"User-Agent": "global", "X-Env": "dev"})
+        merged = executor._merge_headers(RequestSpec(method="GET", url="/x", headers={"user-agent": "case"}))
+        assert merged["user-agent"] == "case"
+        assert "User-Agent" not in merged
+        assert merged["X-Env"] == "dev"

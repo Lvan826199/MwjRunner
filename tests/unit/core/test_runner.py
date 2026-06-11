@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+import mwjrunner.core.runner as runner_module
 from mwjrunner.core.runner import RunExecutor, run_from_args
 from mwjrunner.http.model import HttpRequest, HttpResponse, HttpResult
 from mwjrunner.reports.exit_code import ERROR_EXIT_CODE, INTERNAL_ERROR_EXIT_CODE, SUCCESS_EXIT_CODE
@@ -17,7 +18,7 @@ from mwjrunner.reports.model import CaseResult
 class FakeHttpExecutor:
     """用于隔离网络请求的 HTTP 执行器。"""
 
-    def __init__(self, base_url: str | None = None) -> None:
+    def __init__(self, base_url: str | None = None, **_kwargs) -> None:
         self.base_url = base_url
 
     def execute(self, request_spec):
@@ -503,3 +504,120 @@ steps:
     assert result.summary.failed_cases == 1
     assert result.summary.skipped_cases == 1
     assert result.cases[1].status == "skipped"
+
+
+def test_step_error_marks_remaining_steps_skipped(tmp_path: Path) -> None:
+    """步骤 error 后剩余步骤补录为 skipped，报告中可区分未执行。"""
+    case_file = tmp_path / "skip_demo.yaml"
+    case_file.write_text(
+        """
+name: 步骤跳过演示
+steps:
+  - name: 变量错误步骤
+    request:
+      method: GET
+      url: /api/${missing}
+  - name: 不会执行的步骤
+    request:
+      method: GET
+      url: /health
+""",
+        encoding="utf-8",
+    )
+
+    result = RunExecutor(path=case_file, report="console", report_dir=tmp_path).execute()
+
+    steps = result.cases[0].steps
+    assert len(steps) == 2
+    assert steps[0].status == "error"
+    assert steps[1].status == "skipped"
+
+
+def test_step_variables_override_case_variables(tmp_path: Path) -> None:
+    """步骤级 variables 覆盖用例级变量，且步骤结束后还原。"""
+    case_file = tmp_path / "step_vars.yaml"
+    case_file.write_text(
+        """
+name: 步骤级变量
+variables:
+  keyword: case-level
+steps:
+  - name: 使用步骤级变量
+    variables:
+      keyword: step-level
+    request:
+      method: GET
+      url: /api/items
+      query:
+        keyword: ${keyword}
+  - name: 回到用例级变量
+    request:
+      method: GET
+      url: /api/items
+      query:
+        keyword: ${keyword}
+""",
+        encoding="utf-8",
+    )
+
+    captured: list[str] = []
+
+    class RecordingExecutor(FakeHttpExecutor):
+        def execute(self, request_spec):
+            captured.append(request_spec.query.get("keyword"))
+            return super().execute(request_spec)
+
+    original = runner_module.HttpExecutor
+    runner_module.HttpExecutor = RecordingExecutor
+    try:
+        result = RunExecutor(path=case_file, report="console", report_dir=tmp_path).execute()
+    finally:
+        runner_module.HttpExecutor = original
+
+    assert result.cases[0].status == "passed"
+    assert captured == ["step-level", "case-level"]
+
+
+def test_negative_retry_clamped_to_zero(tmp_path: Path) -> None:
+    """负数 retry 不再导致用例零次执行后崩溃。"""
+    case_file = tmp_path / "health.yaml"
+    case_file.write_text(
+        """
+name: 健康检查
+steps:
+  - name: 服务健康状态
+    request:
+      method: GET
+      url: /health
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = RunExecutor(path=case_file, report="console", report_dir=tmp_path, retry=-5).run()
+
+    assert exit_code == SUCCESS_EXIT_CODE
+
+
+def test_history_recorded_after_run(tmp_path: Path) -> None:
+    """每次运行后写入 reports/history.json。"""
+    case_file = tmp_path / "health.yaml"
+    report_dir = tmp_path / "reports"
+    case_file.write_text(
+        """
+name: 健康检查
+steps:
+  - name: 服务健康状态
+    request:
+      method: GET
+      url: /health
+""",
+        encoding="utf-8",
+    )
+
+    RunExecutor(path=case_file, report="console", report_dir=report_dir).run()
+
+    history_file = report_dir / "history.json"
+    assert history_file.is_file()
+    entries = json.loads(history_file.read_text(encoding="utf-8"))
+    assert len(entries) == 1
+    assert entries[0]["total_cases"] == 1

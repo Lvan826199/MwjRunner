@@ -53,10 +53,13 @@ def record_history(result: RunResult, history_file: Path | None = None) -> Path:
     # 保留最近 100 条
     entries = entries[-100:]
 
-    history_file.write_text(
+    # 先写临时文件再原子替换，避免并发/中断产生半截 JSON
+    temp_file = history_file.with_suffix(".json.tmp")
+    temp_file.write_text(
         json.dumps([asdict(e) for e in entries], ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+    temp_file.replace(history_file)
     return history_file
 
 

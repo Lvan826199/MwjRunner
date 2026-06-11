@@ -6,10 +6,13 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+_POSTMAN_VARIABLE_PATTERN = re.compile(r"\{\{(\w+)\}\}")
 
 
 def import_postman_collection(
@@ -31,10 +34,32 @@ def import_postman_collection(
 
     data = _load_collection(collection_path)
     items = data.get("item", [])
+    collection_variables = _parse_collection_variables(data.get("variable", []))
 
     generated: list[Path] = []
-    _process_items(items, output_dir, generated, "")
+    _process_items(items, output_dir, generated, "", collection_variables)
     return generated
+
+
+def _parse_collection_variables(raw: Any) -> dict[str, Any]:
+    """解析集合级 variable 数组为变量字典。"""
+    variables: dict[str, Any] = {}
+    if isinstance(raw, list):
+        for item in raw:
+            if isinstance(item, dict) and item.get("key"):
+                variables[str(item["key"])] = item.get("value", "")
+    return variables
+
+
+def _convert_postman_variables(value: Any) -> Any:
+    """递归将 Postman 的 {{var}} 变量语法转换为 MwjRunner 的 ${var}。"""
+    if isinstance(value, str):
+        return _POSTMAN_VARIABLE_PATTERN.sub(r"${\1}", value)
+    if isinstance(value, dict):
+        return {key: _convert_postman_variables(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_convert_postman_variables(item) for item in value]
+    return value
 
 
 def _load_collection(path: Path) -> dict[str, Any]:
@@ -65,6 +90,7 @@ def _process_items(
     output_dir: Path,
     generated: list[Path],
     _prefix: str,
+    collection_variables: dict[str, Any] | None = None,
 ) -> None:
     """递归处理 Postman items（支持文件夹嵌套）。"""
     for item in items:
@@ -73,12 +99,12 @@ def _process_items(
             folder_name = _safe_filename(item.get("name", "folder"))
             sub_dir = output_dir / folder_name
             sub_dir.mkdir(parents=True, exist_ok=True)
-            _process_items(item["item"], sub_dir, generated, folder_name + "/")
+            _process_items(item["item"], sub_dir, generated, folder_name + "/", collection_variables)
         elif "request" in item:
             # 单个请求
-            yaml_content = _convert_request_to_case(item)
-            filename = _safe_filename(item.get("name", "request")) + ".yaml"
-            file_path = output_dir / filename
+            yaml_content = _convert_request_to_case(item, collection_variables)
+            base_name = _safe_filename(item.get("name", "request"))
+            file_path = _unique_path(output_dir, base_name, generated)
             file_path.write_text(
                 yaml.dump(yaml_content, allow_unicode=True, default_flow_style=False, sort_keys=False),
                 encoding="utf-8",
@@ -86,15 +112,29 @@ def _process_items(
             generated.append(file_path)
 
 
-def _convert_request_to_case(item: dict[str, Any]) -> dict[str, Any]:
+def _unique_path(output_dir: Path, base_name: str, generated: list[Path]) -> Path:
+    """同名文件追加序号，避免同次导入互相覆盖。"""
+    existing = set(generated)
+    candidate = output_dir / f"{base_name}.yaml"
+    counter = 2
+    while candidate in existing:
+        candidate = output_dir / f"{base_name}_{counter}.yaml"
+        counter += 1
+    return candidate
+
+
+def _convert_request_to_case(
+    item: dict[str, Any],
+    collection_variables: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """将单个 Postman request item 转换为 MwjRunner case 结构。"""
     name = item.get("name", "Unnamed Request")
     request = item.get("request", {})
 
     method = request.get("method", "GET")
-    url = _parse_url(request.get("url", ""))
-    headers = _parse_headers(request.get("header", []))
-    body = _parse_body(request.get("body"))
+    url = _convert_postman_variables(_parse_url(request.get("url", "")))
+    headers = _convert_postman_variables(_parse_headers(request.get("header", [])))
+    body = _convert_postman_variables(_parse_body(request.get("body")))
 
     step: dict[str, Any] = {
         "name": name,
@@ -112,8 +152,10 @@ def _convert_request_to_case(item: dict[str, Any]) -> dict[str, Any]:
     case: dict[str, Any] = {
         "name": name,
         "tags": ["imported"],
-        "steps": [step],
     }
+    if collection_variables:
+        case["variables"] = dict(collection_variables)
+    case["steps"] = [step]
 
     return case
 
@@ -126,9 +168,11 @@ def _parse_url(url: Any) -> str:
         raw = url.get("raw", "")
         if raw:
             return raw
-        # 从 host + path 拼接
-        host = ".".join(url.get("host", []))
-        path = "/".join(url.get("path", []))
+        # 从 host + path 拼接（规范允许 host/path 为字符串或数组）
+        raw_host = url.get("host", [])
+        host = raw_host if isinstance(raw_host, str) else ".".join(raw_host)
+        raw_path = url.get("path", [])
+        path = raw_path.lstrip("/") if isinstance(raw_path, str) else "/".join(raw_path)
         protocol = url.get("protocol", "http")
         if host:
             return f"{protocol}://{host}/{path}"

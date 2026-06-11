@@ -160,8 +160,10 @@ async def _execute_scenario(run_id: int, steps_json: str, variables_json: str): 
                 if delay_ms > 0:
                     await asyncio.sleep(delay_ms / 1000)
 
-                # 获取用例
+                # 获取用例（按场景归属团队隔离，禁止引用其他团队的用例）
                 case = await db.get(TestCase, case_id) if case_id else None
+                if case and run.team_id and case.team_id and case.team_id != run.team_id:
+                    case = None
                 if not case:
                     step_results.append(
                         {

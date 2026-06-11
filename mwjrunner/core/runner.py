@@ -11,9 +11,10 @@ from pathlib import Path
 from threading import Event
 from typing import Any
 from uuid import uuid4
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from mwjrunner.assertions.builtin import create_default_registry
+from mwjrunner.auth import obtain_token
 from mwjrunner.cases.data_driver import expand_data_driven
 from mwjrunner.cases.discovery import discover_case_files
 from mwjrunner.cases.errors import CaseLoadError
@@ -42,6 +43,7 @@ from mwjrunner.reports.exit_code import (
     SUCCESS_EXIT_CODE,
     resolve_exit_code,
 )
+from mwjrunner.reports.history import record_history
 from mwjrunner.reports.html import HtmlReporter
 from mwjrunner.reports.json import JsonReporter
 from mwjrunner.reports.model import CaseResult, RunResult, StepResult, Summary
@@ -78,27 +80,39 @@ class RunExecutor:
         auth: AuthConfig | None = None,
         quality_gate: QualityGateConfig | None = None,
         notify_configs: list[Any] | None = None,
+        timeout: float | None = None,
+        default_headers: dict[str, str] | None = None,
+        verify_ssl: bool = True,
+        proxy: str | None = None,
     ) -> None:
         self.path = Path(path)
         self.base_url = base_url
         self.report_types = _parse_report_types(report)
         self.report_dir = Path(report_dir or DEFAULT_REPORT_DIR)
         self.cli_variables = dict(cli_variables or {})
-        self.retry = retry
+        self.retry = max(0, retry)
         self.fail_fast = fail_fast
         self.tags = tags
         self.exclude_tags = exclude_tags
         self.priority = priority
-        self.workers = workers
-        self.tz = ZoneInfo(timezone_name) if timezone_name else ZoneInfo("Asia/Shanghai")
+        self.workers = max(1, workers)
+        try:
+            self.tz = ZoneInfo(timezone_name) if timezone_name else ZoneInfo("Asia/Shanghai")
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise RunConfigError(f"无效的时区配置: {timezone_name}") from exc
         self.auth = auth
         self.quality_gate = quality_gate
         self.notify_configs = notify_configs or []
+        self.timeout = timeout
+        self.default_headers = dict(default_headers or {})
+        self.verify_ssl = verify_ssl
+        self.proxy = proxy
 
     def run(self) -> int:
         """执行用例、输出报告并返回退出码。"""
         result = self.execute()
         self.write_reports(result)
+        self._record_history(result)
 
         # 发送通知
         self._send_notifications(result)
@@ -108,8 +122,8 @@ class RunExecutor:
 
         exit_code = resolve_exit_code(result)
 
-        # 质量门禁检查（仅在执行成功或断言失败时评估）
-        if self.quality_gate and exit_code in (SUCCESS_EXIT_CODE, ASSERTION_FAILED_EXIT_CODE):
+        # 质量门禁检查（执行成功、断言失败或用例级错误时均评估，错误率阈值才有意义）
+        if self.quality_gate and exit_code in (SUCCESS_EXIT_CODE, ASSERTION_FAILED_EXIT_CODE, ERROR_EXIT_CODE):
             gate_result = evaluate_quality_gate(result, self.quality_gate)
             if not gate_result.passed:
                 for violation in gate_result.violations:
@@ -117,6 +131,13 @@ class RunExecutor:
                 return QUALITY_GATE_EXIT_CODE
 
         return exit_code
+
+    def _record_history(self, result: RunResult) -> None:
+        """记录运行历史（reports/history.json），失败不影响主流程。"""
+        try:
+            record_history(result, self.report_dir / "history.json")
+        except OSError:
+            logging.getLogger("mwjrunner").warning("执行历史写入失败: %s", self.report_dir / "history.json")
 
     def _send_notifications(self, result: RunResult) -> None:
         """发送通知（如果配置了通知渠道）。"""
@@ -288,17 +309,31 @@ class RunExecutor:
                 )
 
         # 解析认证配置：case 级覆盖全局
-        effective_auth = _resolve_auth(case.auth, self.auth, variable_engine)
+        try:
+            effective_auth = _resolve_auth(case.auth, self.auth, variable_engine)
+        except VariableError as exc:
+            return CaseResult(
+                name=case.name,
+                status="error",
+                source_file=case.source_file,
+                errors=[f"认证配置解析失败: {exc}"],
+            )
 
         # 用例文件所在目录，用于解析相对路径
         case_dir = Path(case.source_file).parent if case.source_file else None
 
-        http_executor = HttpExecutor(base_url=self.base_url)
+        http_executor = HttpExecutor(
+            base_url=self.base_url,
+            default_timeout=self.timeout if self.timeout is not None else 30.0,
+            default_headers=self.default_headers,
+            verify_ssl=self.verify_ssl,
+            proxy=self.proxy,
+        )
         registry = create_default_registry()
         steps: list[StepResult] = []
         errors: list[str] = []
 
-        for step in case.steps:
+        for step_index, step in enumerate(case.steps):
             step_result = self._execute_step(
                 step,
                 variable_engine,
@@ -311,6 +346,10 @@ class RunExecutor:
             steps.append(step_result)
             if step_result.status == "error":
                 errors.extend(step_result.errors)
+                # 补录剩余未执行步骤为 skipped，报告中可区分"未执行"
+                steps.extend(
+                    StepResult(name=remaining.name, status="skipped") for remaining in case.steps[step_index + 1 :]
+                )
                 break
 
         if errors:
@@ -320,10 +359,10 @@ class RunExecutor:
         else:
             status = "passed"
 
-        # after_case hook
+        # after_case hook（清理场景：全部执行，聚合错误）
         after_hooks = _get_hook_paths(case.hooks, "after_case")
         if after_hooks:
-            hook_result = run_hooks(after_hooks, context)
+            hook_result = run_hooks(after_hooks, context, stop_on_failure=False)
             if not hook_result.success:
                 errors.append(hook_result.error or "after_case hook 失败")
                 status = "error"
@@ -348,7 +387,18 @@ class RunExecutor:
     ) -> StepResult:
         start_time = time.perf_counter()
         logger.info("开始执行步骤: %s", step.name)
+        step_var_overrides: dict[str, tuple[bool, Any, Any]] = {}
         try:
+            # 步骤级变量临时覆盖用例级变量，步骤结束后还原
+            for key, raw_value in (step.variables or {}).items():
+                rendered_value = variable_engine.render(raw_value)
+                step_var_overrides[key] = (
+                    key in variable_engine.variables,
+                    variable_engine.variables.get(key),
+                    rendered_value,
+                )
+                variable_engine.variables[key] = rendered_value
+
             rendered_request = _render_request(step.request, variable_engine, case_dir)
             # 注入认证 header（不覆盖用户显式声明的 Authorization）
             if auth_header and "authorization" not in {k.lower() for k in rendered_request.headers}:
@@ -376,6 +426,24 @@ class RunExecutor:
                 errors=[message],
                 elapsed_ms=_elapsed_ms(start_time),
             )
+        except Exception as exc:
+            # 单步骤的未预期异常不应使整次运行坍缩为内部错误
+            logger.exception("步骤执行异常: %s", step.name)
+            return StepResult(
+                name=step.name,
+                status="error",
+                errors=[f"步骤执行异常: {exc}"],
+                elapsed_ms=_elapsed_ms(start_time),
+            )
+        finally:
+            # 还原步骤级变量；若被本步骤提取覆盖则保留提取值
+            for key, (existed, old_value, set_value) in step_var_overrides.items():
+                if variable_engine.variables.get(key) is not set_value:
+                    continue
+                if existed:
+                    variable_engine.variables[key] = old_value
+                else:
+                    variable_engine.variables.pop(key, None)
 
 
 def run_from_args(args: Any) -> int:
@@ -389,22 +457,27 @@ def run_from_args(args: Any) -> int:
         cli_variables = _parse_cli_variables(getattr(args, "var", []) or [])
         path = getattr(args, "path", None) or _raise_config_error("缺少用例文件路径")
 
-        # 加载配置（项目配置 + 环境配置）
+        # 加载配置（项目配置 + 环境配置），从当前工作目录查找 mwjrunner.yaml 和 envs/
         env_name = getattr(args, "env", None)
-        project_dir = Path(path).parent if Path(path).is_file() else Path(path)
         try:
-            config = load_config(env=env_name, project_dir=project_dir)
+            config = load_config(env=env_name, project_dir=Path.cwd())
         except ConfigLoadError as exc:
             _raise_config_error(str(exc))
             return ERROR_EXIT_CODE  # unreachable, for type checker
 
-        # CLI 参数覆盖配置
+        # CLI 参数覆盖配置（显式传 0 等 falsy 值同样生效）
         base_url = getattr(args, "base_url", None) or config.base_url
         report = getattr(args, "report", None)
         report_dir = getattr(args, "report_dir", None) or config.report_dir
-        retry = getattr(args, "retry", None) or config.retry
+        cli_retry = getattr(args, "retry", None)
+        retry = cli_retry if cli_retry is not None else config.retry
+        if retry < 0:
+            _raise_config_error(f"retry 不能为负数: {retry}")
         fail_fast = getattr(args, "fail_fast", False) or config.fail_fast
-        workers = getattr(args, "workers", None) or config.workers
+        cli_workers = getattr(args, "workers", None)
+        workers = cli_workers if cli_workers is not None else config.workers
+        if workers < 1:
+            _raise_config_error(f"workers 必须大于等于 1: {workers}")
 
         # 解析过滤参数
         tags = _parse_comma_list(getattr(args, "tags", None))
@@ -413,6 +486,18 @@ def run_from_args(args: Any) -> int:
 
         # 合并变量：config.variables < cli_variables
         merged_variables = {**config.variables, **cli_variables}
+
+        # OAuth2：执行前获取 access_token，转为 Bearer 认证
+        # 配置中的 ${VAR} 引用先用合并后的变量渲染（如 client_secret: ${CLIENT_SECRET}）
+        effective_auth = config.auth
+        if config.oauth2 is not None:
+            oauth2_config = _render_oauth2_config(config.oauth2, merged_variables)
+            token_result = obtain_token(oauth2_config)
+            if token_result.error:
+                _raise_config_error(f"OAuth2 获取 token 失败: {token_result.error}")
+            if not token_result.access_token:
+                _raise_config_error("OAuth2 获取 token 失败: 响应中缺少 access_token")
+            effective_auth = AuthConfig(type="bearer", token=token_result.access_token)
 
         executor = RunExecutor(
             path=path,
@@ -427,9 +512,13 @@ def run_from_args(args: Any) -> int:
             priority=priority,
             workers=workers,
             timezone_name=config.timezone,
-            auth=config.auth,
+            auth=effective_auth,
             quality_gate=parse_quality_gate_config(config.quality_gate),
             notify_configs=_parse_notify_configs(config.notifications),
+            timeout=config.timeout,
+            default_headers=config.headers,
+            verify_ssl=config.verify_ssl,
+            proxy=config.proxy,
         )
         return executor.run()
     except RunConfigError as exc:
@@ -444,6 +533,20 @@ def run_from_args(args: Any) -> int:
         )
         ConsoleReporter().write(result)
         return ERROR_EXIT_CODE
+
+
+def _render_oauth2_config(oauth2_config: Any, variables: dict[str, Any]) -> Any:
+    """渲染 OAuth2 配置字段中的 ${VAR} 变量引用。"""
+    engine = VariableEngine(variables)
+    return replace(
+        oauth2_config,
+        token_url=engine.render(oauth2_config.token_url),
+        client_id=engine.render(oauth2_config.client_id),
+        client_secret=engine.render(oauth2_config.client_secret),
+        username=engine.render(oauth2_config.username),
+        password=engine.render(oauth2_config.password),
+        scope=engine.render(oauth2_config.scope),
+    )
 
 
 def _render_request(request: RequestSpec, variable_engine: VariableEngine, case_dir: Path | None = None) -> RequestSpec:

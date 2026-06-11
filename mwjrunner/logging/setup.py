@@ -25,6 +25,9 @@ class RedactingFormatter(logging.Formatter):
 def configure_logging(config: LogConfig) -> logging.Logger:
     """初始化并返回 MwjRunner 项目 logger。"""
     logger = logging.getLogger(_LOGGER_NAME)
+    # 先关闭旧 handler（释放文件句柄），再清空
+    for handler in logger.handlers:
+        handler.close()
     logger.handlers.clear()
     logger.filters.clear()
     logger.propagate = False

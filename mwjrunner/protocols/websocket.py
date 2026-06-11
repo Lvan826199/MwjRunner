@@ -48,7 +48,11 @@ class WebSocketAdapter(ProtocolAdapter):
         try:
             start = time.perf_counter()
 
-            with ws_client.connect(request.target, open_timeout=timeout) as conn:
+            with ws_client.connect(
+                request.target,
+                open_timeout=timeout,
+                additional_headers=request.headers or None,
+            ) as conn:
                 # 发送
                 if request.payload is not None:
                     message = request.payload if isinstance(request.payload, str) else json.dumps(request.payload)

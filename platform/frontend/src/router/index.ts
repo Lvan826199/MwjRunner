@@ -71,7 +71,7 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const token = getAccessToken()
 
   if (to.meta.public) {
@@ -87,6 +87,21 @@ router.beforeEach((to, _from, next) => {
   if (!token) {
     next({ path: '/login', query: { redirect: to.fullPath } })
     return
+  }
+
+  // 角色校验：meta.roles 声明的页面仅允许对应角色访问
+  const requiredRoles = to.meta.roles as string[] | undefined
+  if (requiredRoles && requiredRoles.length > 0) {
+    const { useAuthStore } = await import('../stores/auth')
+    const authStore = useAuthStore()
+    if (!authStore.user) {
+      await authStore.fetchUser()
+    }
+    const role = authStore.user?.role
+    if (!role || !requiredRoles.includes(role)) {
+      next('/')
+      return
+    }
   }
 
   next()

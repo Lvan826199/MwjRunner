@@ -156,12 +156,12 @@ uv run mwjrunner run examples/cases/variables/builtin_functions.yaml \
 
 ```bash
 # 使用 --env 参数，自动读取 examples/envs/dev.yaml
-uv run mwjrunner run examples/cases/login.yaml \
+# 注意：--env 在当前工作目录的 envs/ 子目录下查找，需先进入 examples/ 目录
+cd examples
+uv run mwjrunner run cases/login.yaml \
     --env dev \
     --report console
 ```
-
-> 注意：`--env dev` 会在当前目录的 `envs/` 子目录下查找 `dev.yaml`，需在 `examples/` 目录下运行，或配合 `mwjrunner.yaml` 使用。
 
 ### 断言扩展
 
@@ -195,7 +195,7 @@ uv run mwjrunner run examples/cases/auth/bearer_auth.yaml \
 ### 重试
 
 ```bash
-# 演示失败重试（请求 /api/error 固定返回 500，重试 3 次）
+# 演示失败重试（请求 /api/error 固定返回 500，重试 2 次、共 3 次尝试）
 uv run mwjrunner run examples/cases/advanced/retry_demo.yaml \
     --base-url http://127.0.0.1:8000 --report console
 ```
@@ -203,8 +203,9 @@ uv run mwjrunner run examples/cases/advanced/retry_demo.yaml \
 ### fail-fast
 
 ```bash
-# 第 2 步失败后立即停止，第 3 步被跳过
-uv run mwjrunner run examples/cases/advanced/fail_fast_demo.yaml \
+# fail-fast 是用例级行为：某个用例失败后，跳过目录中后续用例
+# （同一用例内的步骤不会因断言失败中断）
+uv run mwjrunner run examples/cases/advanced/ \
     --base-url http://127.0.0.1:8000 --fail-fast --report console
 ```
 
@@ -224,7 +225,9 @@ uv run mwjrunner run examples/cases/ \
 ```bash
 # examples/mwjrunner.yaml 配置了 max_failure_rate: 0.1
 # 失败率超过 10% 时退出码为 4
-uv run mwjrunner run examples/cases/ \
+# 注意：mwjrunner.yaml 从当前工作目录读取，需先进入 examples/ 目录
+cd examples
+uv run mwjrunner run cases/ \
     --base-url http://127.0.0.1:8000 \
     --report console
 ```

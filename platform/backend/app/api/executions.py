@@ -60,9 +60,8 @@ async def create_execution(
     case_path = data.case_path
 
     if data.case_id:
-        case = await db.get(TestCase, data.case_id)
-        if not case:
-            raise HTTPException(status_code=404, detail="用例不存在")
+        # 团队鉴权：禁止触发其他团队的用例（IDOR 防护）
+        case = await check_resource_access(db, TestCase, data.case_id, user)
         case_name = case.name
         # 将用例内容写入临时文件
         case_path = _write_case_to_storage(case)

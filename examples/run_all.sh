@@ -1,6 +1,7 @@
 #!/bin/bash
 # MwjRunner 示例一键运行脚本（Linux/macOS）
-# 用途：启动 FastAPI 示例服务，运行所有示例用例，生成报告，停止服务
+# 用途：启动 FastAPI 示例服务，运行主要示例用例（基础/数据驱动/断言/提取器/认证/变量函数，
+#       不含 advanced/ 和 hooks/ 演示用例），生成报告，停止服务
 
 set -e
 

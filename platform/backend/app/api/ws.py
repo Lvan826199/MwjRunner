@@ -15,22 +15,27 @@ from app.core.security import decode_access_token
 router = APIRouter()
 
 
+# admin 专属分组标识，避免与"无团队"普通用户共用 None 键导致事件越界
+ADMIN_GROUP = "__admin__"
+NO_TEAM_GROUP = "__no_team__"
+
+
 class ConnectionManager:
     """管理 WebSocket 连接。"""
 
     def __init__(self):
-        # team_id -> set of connections
-        self._connections: dict[int | None, set[WebSocket]] = {}
+        # 分组键（team_id / ADMIN_GROUP / NO_TEAM_GROUP）-> set of connections
+        self._connections: dict[int | str, set[WebSocket]] = {}
         self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket, team_id: int | None):
+    async def connect(self, websocket: WebSocket, team_id: int | str):
         await websocket.accept()
         async with self._lock:
             if team_id not in self._connections:
                 self._connections[team_id] = set()
             self._connections[team_id].add(websocket)
 
-    async def disconnect(self, websocket: WebSocket, team_id: int | None):
+    async def disconnect(self, websocket: WebSocket, team_id: int | str):
         async with self._lock:
             if team_id in self._connections:
                 self._connections[team_id].discard(websocket)
@@ -48,9 +53,9 @@ class ConnectionManager:
                 for conns in self._connections.values():
                     targets.update(conns)
             else:
-                # 广播给指定团队 + admin（team_id=None 的连接）
+                # 广播给指定团队 + admin 专属分组
                 targets.update(self._connections.get(team_id, set()))
-                targets.update(self._connections.get(None, set()))
+                targets.update(self._connections.get(ADMIN_GROUP, set()))
 
         for ws in targets:
             with contextlib.suppress(Exception):
@@ -69,20 +74,22 @@ manager = ConnectionManager()
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket 入口。通过 query param token 认证。"""
     token = websocket.query_params.get("token", "")
-    team_id: int | None = None
+    group: int | str = NO_TEAM_GROUP
 
     try:
         payload = decode_access_token(token)
         team_id = payload.get("team_id")
         user_role = payload.get("role", "")
-        # admin 用 team_id=None 表示可接收所有消息
+        # admin 加入专属分组接收所有消息；无团队普通用户单独分组，不接收任何团队事件
         if user_role == "admin":
-            team_id = None
+            group = ADMIN_GROUP
+        elif team_id is not None:
+            group = team_id
     except (jwt.InvalidTokenError, Exception):
         await websocket.close(code=4001, reason="认证失败")
         return
 
-    await manager.connect(websocket, team_id)
+    await manager.connect(websocket, group)
     try:
         while True:
             # 保持连接，接收 ping
@@ -92,7 +99,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
-        await manager.disconnect(websocket, team_id)
+        await manager.disconnect(websocket, group)
 
 
 async def notify_execution_update(execution_id: int, status: str, team_id: int | None, **extra):

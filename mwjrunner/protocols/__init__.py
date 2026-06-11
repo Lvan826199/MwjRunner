@@ -52,7 +52,8 @@ class ProtocolResult:
 
     @property
     def is_success(self) -> bool:
-        return self.response is not None and self.error is None
+        # 部分适配器将协议级错误包装为 status="error" 的响应（error 为 None），需一并判定
+        return self.response is not None and self.error is None and self.response.status != "error"
 
 
 class ProtocolAdapter(ABC):

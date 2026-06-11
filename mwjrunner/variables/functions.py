@@ -92,19 +92,29 @@ def _random_phone(*_args: str) -> str:
 
 def _random_int(*args: str) -> str:
     """返回随机整数。参数: min, max（默认 0-9999）。"""
-    min_val = int(args[0]) if len(args) > 0 and args[0] else 0
-    max_val = int(args[1]) if len(args) > 1 and args[1] else 9999
+    try:
+        min_val = int(args[0]) if len(args) > 0 and args[0] else 0
+        max_val = int(args[1]) if len(args) > 1 and args[1] else 9999
+    except ValueError as exc:
+        raise ValueError(f"__random_int 参数必须是整数: {', '.join(args)}") from exc
+    if min_val > max_val:
+        raise ValueError(f"__random_int 参数范围无效: min={min_val} 大于 max={max_val}")
     return str(random.randint(min_val, max_val))
 
 
 def _random_str(*args: str) -> str:
     """返回随机字符串。参数: length（默认 8）。"""
-    length = int(args[0]) if args and args[0] else 8
+    try:
+        length = int(args[0]) if args and args[0] else 8
+    except ValueError as exc:
+        raise ValueError(f"__random_str 参数必须是整数: {args[0]}") from exc
     return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
 def _md5(*args: str) -> str:
     """返回字符串的 MD5 哈希。参数: 待哈希字符串。"""
+    if len(args) > 1:
+        raise ValueError('__md5 只接受一个参数; 文本包含逗号时请用引号包裹, 如 ${__md5("a,b")}')
     text = args[0] if args else ""
     return hashlib.md5(text.encode()).hexdigest()
 

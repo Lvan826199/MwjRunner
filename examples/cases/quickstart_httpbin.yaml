@@ -6,7 +6,7 @@ steps:
     request:
       method: GET
       url: /get
-      params:
+      query:
         hello: mwjrunner
     assertions:
       - type: status_code

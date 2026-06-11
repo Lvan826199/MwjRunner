@@ -31,9 +31,10 @@ class QualityGateResult:
 def evaluate_quality_gate(result: RunResult, config: QualityGateConfig) -> QualityGateResult:
     """评估运行结果是否通过质量门禁。"""
     violations: list[str] = []
-    total = result.summary.total_cases
+    # fail-fast 跳过的用例不计入分母，避免稀释失败率/错误率
+    total = result.summary.total_cases - result.summary.skipped_cases
 
-    if total == 0:
+    if total <= 0:
         return QualityGateResult(passed=True)
 
     # 失败率检查

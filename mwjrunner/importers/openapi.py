@@ -85,8 +85,7 @@ def _generate_from_v3(spec: dict[str, Any], output_dir: Path) -> list[Path]:
                 spec=spec,
             )
 
-            filename = _make_filename(method, path)
-            file_path = output_dir / filename
+            file_path = _unique_output_path(output_dir, _make_filename(method, path), generated)
             file_path.write_text(
                 yaml.dump(case, allow_unicode=True, default_flow_style=False, sort_keys=False),
                 encoding="utf-8",
@@ -94,6 +93,18 @@ def _generate_from_v3(spec: dict[str, Any], output_dir: Path) -> list[Path]:
             generated.append(file_path)
 
     return generated
+
+
+def _unique_output_path(output_dir: Path, filename: str, generated: list[Path]) -> Path:
+    """同名文件追加序号，避免同次生成互相覆盖（如 /users/{id} 与 /users/id）。"""
+    existing = set(generated)
+    candidate = output_dir / filename
+    stem = candidate.stem
+    counter = 2
+    while candidate in existing:
+        candidate = output_dir / f"{stem}_{counter}.yaml"
+        counter += 1
+    return candidate
 
 
 def _generate_from_v2(spec: dict[str, Any], output_dir: Path) -> list[Path]:
@@ -118,8 +129,7 @@ def _generate_from_v2(spec: dict[str, Any], output_dir: Path) -> list[Path]:
                 spec=spec,
             )
 
-            filename = _make_filename(method, path)
-            file_path = output_dir / filename
+            file_path = _unique_output_path(output_dir, _make_filename(method, path), generated)
             file_path.write_text(
                 yaml.dump(case, allow_unicode=True, default_flow_style=False, sort_keys=False),
                 encoding="utf-8",
@@ -230,8 +240,10 @@ def _extract_header_params(operation: dict[str, Any]) -> dict[str, str]:
 def _guess_success_status(operation: dict[str, Any]) -> int:
     """猜测成功状态码。"""
     responses = operation.get("responses", {})
+    # YAML 中未加引号的状态码会被解析为 int 键，统一归一为字符串再匹配
+    normalized = {str(key) for key in responses}
     for code in ("200", "201", "204", "202"):
-        if code in responses:
+        if code in normalized:
             return int(code)
     return 200
 
@@ -294,7 +306,8 @@ def _resolve_ref(schema: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]
     if not ref or not isinstance(ref, str):
         return schema
 
-    parts = ref.lstrip("#/").split("/")
+    # removeprefix 按前缀剥离（lstrip 是按字符集剥离，会破坏首段名称）
+    parts = ref.removeprefix("#/").split("/")
     current: Any = spec
     for part in parts:
         if isinstance(current, dict):

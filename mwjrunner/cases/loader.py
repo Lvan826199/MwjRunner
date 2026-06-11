@@ -51,6 +51,8 @@ def parse_case(raw_case: Any, source_file: str) -> TestCase:
     data = _optional_data_list(raw_case, "data", source_file)
     data_file = _optional_string(raw_case, "data_file", source_file)
     retry = _optional_int(raw_case, "retry", source_file)
+    if retry is not None and retry < 0:
+        raise _error(source_file, "retry", "retry 不能为负数。", "请填写 0 或正整数,例如 retry: 2。")
     hooks = _optional_hooks(raw_case, "hooks", source_file)
     auth = _optional_auth(raw_case, "auth", source_file)
     steps = _parse_steps(raw_case.get("steps"), source_file)
@@ -289,7 +291,7 @@ def _optional_int(raw: dict[str, Any], key: str, source_file: str, parent: str =
     value = raw.get(key)
     if value is None:
         return None
-    if not isinstance(value, int):
+    if isinstance(value, bool) or not isinstance(value, int):
         field = f"{parent}.{key}" if parent else key
         raise _error(source_file, field, f"{field} 必须是整数。", f"请填写整数值,例如 {key}: 2。")
     return value

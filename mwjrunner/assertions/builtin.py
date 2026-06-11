@@ -17,10 +17,21 @@ from mwjrunner.cases.model import AssertionSpec
 from mwjrunner.http.model import HttpResult
 
 
+def _values_equal(actual: Any, expected: Any) -> bool:
+    """相等比较；bool 与非 bool 直接判不等，避免 False == 0 / True == 1 误判。"""
+    if isinstance(actual, bool) != isinstance(expected, bool):
+        return False
+    return actual == expected
+
+
 def assert_status_code(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
     """断言 HTTP 状态码。"""
     actual = result.response.status_code if result.response is not None else None
-    passed = actual == spec.expected
+    expected = spec.expected
+    # 兼容 YAML 中写成字符串的状态码（expected: "200"）
+    if isinstance(expected, str) and expected.strip().isdigit():
+        expected = int(expected.strip())
+    passed = _values_equal(actual, expected)
     return AssertionResult(
         type=spec.type,
         passed=passed,
@@ -48,7 +59,7 @@ def assert_json_path(spec: AssertionSpec, result: HttpResult) -> AssertionResult
         except (json.JSONDecodeError, ValueError, KeyError, IndexError, TypeError) as exc:
             error_message = str(exc)
 
-    passed = error_message is None and actual == spec.expected
+    passed = error_message is None and _values_equal(actual, spec.expected)
     if passed:
         message = "json_path 断言通过"
     elif error_message is not None:
@@ -71,7 +82,8 @@ def assert_json_path(spec: AssertionSpec, result: HttpResult) -> AssertionResult
 def assert_body_contains(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
     """断言响应体文本包含期望内容。"""
     actual = result.response.text if result.response is not None else None
-    expected_text = str(spec.expected)
+    # bool 转 JSON 字面量（true/false），与响应体中的 JSON 文本一致
+    expected_text = json.dumps(spec.expected) if isinstance(spec.expected, bool) else str(spec.expected)
     passed = actual is not None and expected_text in actual
     return AssertionResult(
         type=spec.type,
@@ -189,19 +201,31 @@ def assert_response_time(spec: AssertionSpec, result: HttpResult) -> AssertionRe
             mode=spec.mode,
             message="response_time 断言失败: 响应为空,无法获取耗时",
         )
-    threshold = spec.expected
+    try:
+        threshold = float(spec.expected)
+    except (TypeError, ValueError):
+        return AssertionResult(
+            type=spec.type,
+            passed=False,
+            expected=spec.expected,
+            actual=actual,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message=f"response_time 断言失败: expected 必须是数字(毫秒), 实际为 {spec.expected!r}",
+        )
     passed = actual <= threshold
     return AssertionResult(
         type=spec.type,
         passed=passed,
-        expected=threshold,
+        expected=spec.expected,
         actual=actual,
         path=spec.path,
         target=spec.target,
         mode=spec.mode,
         message="response_time 断言通过"
         if passed
-        else f"response_time 断言失败: 实际耗时 {actual}ms 超过阈值 {threshold}ms",
+        else f"response_time 断言失败: 实际耗时 {actual}ms 超过阈值 {threshold:g}ms",
     )
 
 
@@ -220,7 +244,19 @@ def assert_regex(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
             message="regex 断言失败: 响应为空",
         )
     pattern = str(spec.expected)
-    match = re.search(pattern, actual)
+    try:
+        match = re.search(pattern, actual)
+    except re.error as exc:
+        return AssertionResult(
+            type=spec.type,
+            passed=False,
+            expected=pattern,
+            actual=None,
+            path=spec.path,
+            target=spec.target,
+            mode=spec.mode,
+            message=f"regex 断言失败: 正则表达式无效 {pattern} - {exc}",
+        )
     passed = match is not None
     return AssertionResult(
         type=spec.type,
@@ -254,7 +290,9 @@ def assert_header(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
         if key.lower() == header_name.lower():
             actual = value
             break
-    passed = actual == spec.expected
+    # header 值恒为字符串，期望值为数字等类型时归一为字符串再比较
+    expected = spec.expected if isinstance(spec.expected, str) or spec.expected is None else str(spec.expected)
+    passed = actual == expected
     return AssertionResult(
         type=spec.type,
         passed=passed,
@@ -282,7 +320,9 @@ def assert_cookie(spec: AssertionSpec, result: HttpResult) -> AssertionResult:
         )
     cookie_name = spec.path or spec.target or ""
     actual = result.response.cookies.get(cookie_name)
-    passed = actual == spec.expected
+    # cookie 值恒为字符串，期望值为数字等类型时归一为字符串再比较
+    expected = spec.expected if isinstance(spec.expected, str) or spec.expected is None else str(spec.expected)
+    passed = actual == expected
     return AssertionResult(
         type=spec.type,
         passed=passed,

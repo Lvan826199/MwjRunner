@@ -30,11 +30,17 @@ class HttpResponse:
     body: bytes
     elapsed_ms: float
     raw_body: bytes | None = None
+    encoding: str | None = None
 
     @property
     def text(self) -> str:
-        """获取响应文本内容。"""
+        """获取响应文本内容（优先使用响应声明的 charset，回退 UTF-8）。"""
         body = self.raw_body if self.raw_body is not None else self.body
+        if self.encoding:
+            try:
+                return body.decode(self.encoding, errors="replace")
+            except LookupError:
+                pass
         return body.decode("utf-8", errors="replace")
 
     def json(self) -> Any:

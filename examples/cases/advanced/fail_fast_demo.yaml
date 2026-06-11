@@ -1,3 +1,6 @@
+# fail-fast 是用例级行为：本用例断言失败后，--fail-fast 会跳过目录中后续的用例。
+# 同一用例内的步骤不会因断言失败中断（仅步骤 error 会中断并跳过剩余步骤）。
+# 演示方式：uv run mwjrunner run examples/cases/advanced/ --base-url http://127.0.0.1:8000 --fail-fast
 name: fail-fast 演示
 tags: [advanced, fail_fast]
 priority: P2
@@ -10,7 +13,7 @@ steps:
       - type: status_code
         expected: 200
 
-  - name: 第 2 步：断言失败（触发 fail-fast）
+  - name: 第 2 步：断言失败（使本用例失败，--fail-fast 时跳过后续用例）
     request:
       method: GET
       url: /health
@@ -19,7 +22,7 @@ steps:
         path: $.status
         expected: down
 
-  - name: 第 3 步：应被跳过
+  - name: 第 3 步：同用例内步骤仍会执行
     request:
       method: GET
       url: /api/items

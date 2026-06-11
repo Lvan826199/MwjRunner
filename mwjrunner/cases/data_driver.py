@@ -18,9 +18,18 @@ def expand_data_driven(case: TestCase) -> list[TestCase]:
     如果用例没有 data 或 data_file，返回原始用例列表。
     每组数据生成一个独立 case instance，数据注入到 case variables。
     """
+    if case.data is None and case.data_file is None:
+        return [case]
+
     data_rows = _load_data(case)
     if not data_rows:
-        return [case]
+        # 区分"未配置数据驱动"与"配置了但数据为空"，避免静默退化为无数据执行
+        raise CaseLoadError(
+            case.source_file or "<unknown>",
+            "data" if case.data is not None else "data_file",
+            "数据驱动已配置但数据为空。",
+            "请提供至少一组数据，或移除 data/data_file 字段。",
+        )
 
     instances: list[TestCase] = []
     for index, row in enumerate(data_rows):

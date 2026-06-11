@@ -211,3 +211,71 @@ class TestAssertions:
 
         assert result.passed is False
         assert "响应为空" in result.message
+
+
+@pytest.mark.unit
+class TestT70Fixes:
+    """T70 隐藏 bug 修复回归测试。"""
+
+    def test_json_path_bool_not_equal_to_int(self) -> None:
+        """实际为 false、期望为 0 时不再因 False == 0 误判通过。"""
+        registry = create_default_registry()
+        spec = AssertionSpec(type="json_path", path="$.flag", expected=0)
+        result = registry.execute(spec, _http_result(body=b'{"flag":false}'))
+        assert result.passed is False
+
+    def test_status_code_string_expected_normalized(self) -> None:
+        registry = create_default_registry()
+        spec = AssertionSpec(type="status_code", expected="200")
+        result = registry.execute(spec, _http_result(status_code=200))
+        assert result.passed is True
+
+    def test_response_time_string_expected_returns_failure_not_crash(self) -> None:
+        """expected 非数字时返回失败结果，不再抛 TypeError 炸穿整次运行。"""
+        registry = create_default_registry()
+        spec = AssertionSpec(type="response_time", expected="abc")
+        result = registry.execute(spec, _http_result())
+        assert result.passed is False
+        assert "必须是数字" in result.message
+
+    def test_regex_invalid_pattern_returns_failure_not_crash(self) -> None:
+        registry = create_default_registry()
+        spec = AssertionSpec(type="regex", expected="([invalid")
+        result = registry.execute(spec, _http_result())
+        assert result.passed is False
+        assert "正则表达式无效" in result.message
+
+    def test_body_contains_bool_expected_matches_json_literal(self) -> None:
+        registry = create_default_registry()
+        spec = AssertionSpec(type="body_contains", expected=True)
+        result = registry.execute(spec, _http_result(body=b'{"ok":true}'))
+        assert result.passed is True
+
+    def test_cookie_assertion_uses_raw_cookie_value(self) -> None:
+        """响应快照保留原始 cookie，cookie 断言可正常比较真实值。"""
+        registry = create_default_registry()
+        http_result = HttpResult(
+            request=HttpRequest(method="GET", url="/login"),
+            response=HttpResponse(
+                status_code=200,
+                headers={},
+                cookies={"session_id": "real-session"},
+                body=b"{}",
+                elapsed_ms=1.0,
+            ),
+        )
+        spec = AssertionSpec(type="cookie", path="session_id", expected="real-session")
+        result = registry.execute(spec, http_result)
+        assert result.passed is True
+
+    def test_handler_exception_converted_to_failed_result(self) -> None:
+        """断言实现异常转为失败结果，不中断整个运行。"""
+        registry = AssertionRegistry()
+
+        def broken_handler(spec, result):
+            raise RuntimeError("boom")
+
+        registry.register("broken", broken_handler)
+        result = registry.execute(AssertionSpec(type="broken", expected=1), _http_result())
+        assert result.passed is False
+        assert "断言执行异常" in result.message

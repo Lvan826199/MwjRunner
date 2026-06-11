@@ -99,3 +99,29 @@ def test_redact_body_masks_utf8_bytes() -> None:
     assert isinstance(result, bytes)
     assert b"raw-auth" not in result
     assert REDACTED.encode("utf-8") in result
+
+
+def test_redact_text_masks_json_quoted_keys() -> None:
+    """JSON 引号键场景（"token": "abc"）必须被文本兜底脱敏覆盖。"""
+    result = redact_text('{"token": "abc123", "password": "hunter2", "name": "demo"}')
+
+    assert "abc123" not in result
+    assert "hunter2" not in result
+    assert '"name": "demo"' in result
+    assert REDACTED in result
+
+
+def test_redact_text_masks_plain_key_value() -> None:
+    result = redact_text("access_token: secret-value, user: demo")
+
+    assert "secret-value" not in result
+    assert "user: demo" in result
+
+
+def test_redact_url_masks_userinfo_password() -> None:
+    result = redact_url("https://user:s3cret@host:8443/path?a=1")
+
+    assert "s3cret" not in result
+    assert "user" in result
+    assert "host:8443" in result
+    assert "a=1" in result

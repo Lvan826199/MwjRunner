@@ -158,3 +158,61 @@ def test_run_result_to_dict_redacts_sensitive_values() -> None:
     assert data["cases"][0]["steps"][0]["assertions"][0]["actual"] == "***REDACTED***"
     assert data["cases"][0]["steps"][0]["extracts"][0]["value"] == "***REDACTED***"
     assert "username" in serialized
+
+
+def test_assertion_message_redacted_when_path_sensitive() -> None:
+    """敏感 path 的断言 message 不再泄露内嵌的 expected/actual 原始值。"""
+    assertion = AssertionResult(
+        type="json_path",
+        passed=False,
+        expected="other-value",
+        actual="SECRET-XYZ-999",
+        path="$.access_token",
+        target=None,
+        mode="soft",
+        message="json_path 断言失败: path $.access_token 期望 other-value, 实际 SECRET-XYZ-999",
+    )
+    step = StepResult(name="登录", status="failed", assertions=[assertion])
+    data = step.to_dict()
+
+    serialized_message = data["assertions"][0]["message"]
+    assert "SECRET-XYZ-999" not in serialized_message
+    assert "other-value" not in serialized_message
+    assert data["assertions"][0]["actual"] == "***REDACTED***"
+
+
+def test_body_assertion_actual_with_json_token_redacted() -> None:
+    """body 类断言 actual 内嵌 JSON 响应体时，序列化层脱敏 token 字段。"""
+    assertion = AssertionResult(
+        type="body_contains",
+        passed=False,
+        expected="ok",
+        actual='{"code": 0, "access_token": "SECRET-XYZ-999"}',
+        path=None,
+        target=None,
+        mode="soft",
+        message="body_contains 断言失败: 响应体不包含 ok",
+    )
+    step = StepResult(name="登录", status="failed", assertions=[assertion])
+    data = step.to_dict()
+
+    assert "SECRET-XYZ-999" not in str(data)
+
+
+def test_response_raw_headers_cookies_redacted_in_report() -> None:
+    """执行层保留原始 headers/cookies，报告序列化层负责脱敏。"""
+    response = HttpResponse(
+        status_code=200,
+        headers={"X-Auth-Token": "raw-header-token", "Content-Type": "application/json"},
+        cookies={"session_id": "raw-session"},
+        body=b"{}",
+        elapsed_ms=1.0,
+    )
+    step = StepResult(name="登录", status="passed", response=response)
+    data = step.to_dict()
+
+    assert data["response"]["headers"]["X-Auth-Token"] == "***REDACTED***"
+    assert data["response"]["headers"]["Content-Type"] == "application/json"
+    assert data["response"]["cookies"]["session_id"] == "***REDACTED***"
+    # 执行期对象仍保留原始值
+    assert response.cookies["session_id"] == "raw-session"

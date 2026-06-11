@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import base64
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from mwjrunner.auth import OAuth2Config
 
 
 @dataclass
@@ -47,5 +50,6 @@ class ProjectConfig:
     workers: int = 1
     timezone: str = "Asia/Shanghai"
     auth: AuthConfig | None = None
+    oauth2: OAuth2Config | None = None
     quality_gate: dict[str, Any] | None = None
     notifications: list[dict[str, Any]] | None = None

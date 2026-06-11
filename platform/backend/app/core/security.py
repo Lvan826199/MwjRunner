@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -10,8 +11,17 @@ import bcrypt
 import jwt
 
 # 配置（可通过环境变量覆盖）
-JWT_SECRET = os.getenv("JWT_SECRET", "mwjrunner-dev-secret-change-in-prod!")
-JWT_REFRESH_SECRET = os.getenv("JWT_REFRESH_SECRET", "mwjrunner-refresh-secret-change!!")
+_DEFAULT_JWT_SECRET = "mwjrunner-dev-secret-change-in-prod!"
+_DEFAULT_REFRESH_SECRET = "mwjrunner-refresh-secret-change!!"
+JWT_SECRET = os.getenv("JWT_SECRET", _DEFAULT_JWT_SECRET)
+JWT_REFRESH_SECRET = os.getenv("JWT_REFRESH_SECRET", _DEFAULT_REFRESH_SECRET)
+
+if JWT_SECRET == _DEFAULT_JWT_SECRET or JWT_REFRESH_SECRET == _DEFAULT_REFRESH_SECRET:
+    if os.getenv("MWJ_ENV", "").lower() in ("prod", "production"):
+        raise RuntimeError("生产环境禁止使用默认 JWT 密钥, 请设置 JWT_SECRET / JWT_REFRESH_SECRET 环境变量")
+    logging.getLogger("mwjrunner.platform").warning(
+        "正在使用默认 JWT 密钥, 仅限本地开发; 部署前必须设置 JWT_SECRET / JWT_REFRESH_SECRET 环境变量"
+    )
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("JWT_REFRESH_EXPIRE_DAYS", "7"))

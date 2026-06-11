@@ -2,10 +2,9 @@
 
 配置优先级（高到低）：
 1. CLI 参数
-2. 系统环境变量
-3. 环境配置文件（envs/<name>.yaml）
-4. 项目配置文件（mwjrunner.yaml）
-5. 内置默认值
+2. 环境配置文件（envs/<name>.yaml）
+3. 项目配置文件（mwjrunner.yaml）
+4. 内置默认值
 """
 
 from __future__ import annotations
@@ -15,6 +14,7 @@ from typing import Any
 
 import yaml
 
+from mwjrunner.auth import parse_oauth2_config
 from mwjrunner.config.model import AuthConfig, ProjectConfig
 
 
@@ -65,9 +65,42 @@ def _load_yaml_file(file_path: Path) -> dict[str, Any]:
     except yaml.YAMLError as exc:
         raise ConfigLoadError(f"配置文件 YAML 解析失败: {file_path} - {exc}") from exc
 
+    if data is None:
+        # 空配置文件视为无配置
+        return {}
     if not isinstance(data, dict):
         raise ConfigLoadError(f"配置文件顶层必须是对象: {file_path}")
     return data
+
+
+def _to_float(data: dict[str, Any], key: str) -> float:
+    try:
+        return float(data[key])
+    except (TypeError, ValueError) as exc:
+        raise ConfigLoadError(f"配置项 {key} 必须是数字: {data[key]!r}") from exc
+
+
+def _to_int(data: dict[str, Any], key: str) -> int:
+    value = data[key]
+    if isinstance(value, bool) or not isinstance(value, int):
+        try:
+            return int(str(value))
+        except (TypeError, ValueError) as exc:
+            raise ConfigLoadError(f"配置项 {key} 必须是整数: {value!r}") from exc
+    return value
+
+
+def _to_bool(data: dict[str, Any], key: str) -> bool:
+    value = data[key]
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("true", "yes", "on", "1"):
+            return True
+        if normalized in ("false", "no", "off", "0"):
+            return False
+    raise ConfigLoadError(f"配置项 {key} 必须是布尔值: {value!r}")
 
 
 def _merge_config(config: ProjectConfig, data: dict[str, Any]) -> None:  # noqa: PLR0912
@@ -75,19 +108,19 @@ def _merge_config(config: ProjectConfig, data: dict[str, Any]) -> None:  # noqa:
     if "base_url" in data:
         config.base_url = data["base_url"]
     if "timeout" in data:
-        config.timeout = float(data["timeout"])
+        config.timeout = _to_float(data, "timeout")
     if "verify_ssl" in data:
-        config.verify_ssl = bool(data["verify_ssl"])
+        config.verify_ssl = _to_bool(data, "verify_ssl")
     if "proxy" in data:
         config.proxy = data["proxy"]
     if "report_dir" in data:
         config.report_dir = data["report_dir"]
     if "retry" in data:
-        config.retry = int(data["retry"])
+        config.retry = _to_int(data, "retry")
     if "fail_fast" in data:
-        config.fail_fast = bool(data["fail_fast"])
+        config.fail_fast = _to_bool(data, "fail_fast")
     if "workers" in data:
-        config.workers = int(data["workers"])
+        config.workers = _to_int(data, "workers")
     if "timezone" in data:
         config.timezone = data["timezone"]
 
@@ -97,15 +130,20 @@ def _merge_config(config: ProjectConfig, data: dict[str, Any]) -> None:  # noqa:
     if "variables" in data and isinstance(data["variables"], dict):
         config.variables.update(data["variables"])
 
-    # auth 配置
+    # auth 配置（oauth2 单独解析，保留 token_url/client_id 等字段）
     if "auth" in data and isinstance(data["auth"], dict):
         auth_data = data["auth"]
-        config.auth = AuthConfig(
-            type=auth_data.get("type", "bearer"),
-            token=auth_data.get("token"),
-            username=auth_data.get("username"),
-            password=auth_data.get("password"),
-        )
+        if auth_data.get("type") == "oauth2":
+            config.oauth2 = parse_oauth2_config(auth_data)
+            config.auth = None
+        else:
+            config.auth = AuthConfig(
+                type=auth_data.get("type", "bearer"),
+                token=auth_data.get("token"),
+                username=auth_data.get("username"),
+                password=auth_data.get("password"),
+            )
+            config.oauth2 = None
 
     # quality_gate 配置
     if "quality_gate" in data and isinstance(data["quality_gate"], dict):

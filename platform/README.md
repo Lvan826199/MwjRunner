@@ -30,6 +30,11 @@ npm run dev
 
 前端访问 http://localhost:3000，API 代理到后端 http://localhost:8080。
 
+### 安全配置（部署必读）
+
+- 部署前必须设置 `JWT_SECRET` 和 `JWT_REFRESH_SECRET` 环境变量；设置 `MWJ_ENV=production` 后，使用默认密钥会拒绝启动（本地开发未设置时仅输出告警）。
+- 执行触发、场景编排已做团队级资源鉴权；Worker 分布式执行接口当前无认证（实验性，见 `doc/开发问题跟踪.md` DEV-006），请勿在公网暴露。
+
 ## 已实现功能
 
 ### 用例管理（T41）

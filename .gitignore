@@ -6,3 +6,4 @@ __pycache__/
 .claude/settings.json
 .claude/worktrees/
 /reports/
+examples/reports/
