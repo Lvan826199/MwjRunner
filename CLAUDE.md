@@ -107,10 +107,12 @@ pytest 仅允许作为项目自身开发测试工具，用于测试 MwjRunner Py
 
 本项目使用以下 Claude Code 技能和插件：
 
-- `.claude/code-review/SKILL.md`：MwjRunner 专用代码与文档审查技能。每次提交前必须使用。
+- `.claude/skills/py-code-review/SKILL.md`：Python 代码审查技能（工具检查 + 深度架构审查）。每次提交前必须使用。
 - 官方 `superpowers@claude-plugins-official` 插件：已安装并启用，当前项目可直接使用；如需项目作用域安装，使用 `claude plugin install -s project superpowers@claude-plugins-official`。
-- `.claude/req-doc-generator/SKILL.md`：需求文档生成相关技能，可用于需求补充和文档结构化。
-- `.claude/ui-ux-pro-max/SKILL.md`：UI/UX 设计相关技能，后续设计 HTML 报告页面时可参考。
+- `.claude/skills/req-doc-generator/SKILL.md`：需求文档生成相关技能，可用于需求补充和文档结构化。
+- `.claude/skills/ui-ux-pro-max-new/SKILL.md`：UI/UX 设计相关技能，后续设计 HTML 报告页面时可参考。
+
+以上技能源自 `/home/work2/MyProject/mwj-skills/skills`，升级时从该仓库同步对应目录。
 
 必须使用 `superpowers@claude-plugins-official` 的场景：
 
@@ -136,7 +138,7 @@ pytest 仅允许作为项目自身开发测试工具，用于测试 MwjRunner Py
 
 每次提交代码前必须进行 code review：
 
-1. 使用 `.claude/code-review/SKILL.md` 对当前变更进行审查。
+1. 使用 `.claude/skills/py-code-review/SKILL.md` 对当前变更进行审查。
 2. 检查 `git status`、`git diff`、`git diff --cached`。
 3. 确认没有引入 pytest / Allure 作为核心能力。
 4. 确认文档与实现一致。
