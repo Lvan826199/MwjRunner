@@ -4,6 +4,11 @@ __pycache__/
 .pytest_cache/
 .idea/
 .claude/settings.json
+.claude/settings.local.json
 .claude/worktrees/
+.agents/settings.json
+.agents/settings.local.json
+.agents/worktrees/
 /reports/
 examples/reports/
+examples/api/reports/

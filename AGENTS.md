@@ -1,8 +1,8 @@
-# CLAUDE.md
+# AGENTS.md
 
 必须使用简体中文输出。
 
-本文件为 Claude Code 在本仓库中工作的项目级指南。所有修改、建议、审查和提交操作都必须遵守本文件约束。
+本文件为 Codex 在本仓库中工作的项目级指南。所有修改、建议、审查和提交操作都必须遵守本文件约束。
 
 ## 项目概述
 
@@ -128,20 +128,20 @@ uv run python -X utf8 -m scripts.sync_agent_assets --check
 
 ## 项目技能引用
 
-本项目使用以下 Claude Code 技能和插件：
+本项目使用以下 Codex 技能和插件：
 
-- `.claude/skills/py-code-review/SKILL.md`：Python 代码审查技能（工具检查 + 深度架构审查）。每次提交前必须使用。
-- 官方 `superpowers@claude-plugins-official` 插件：已安装并启用，当前项目可直接使用；如需项目作用域安装，使用 `claude plugin install -s project superpowers@claude-plugins-official`。
-- `.claude/skills/req-doc-generator/SKILL.md`：需求文档生成相关技能，可用于需求补充和文档结构化。
-- `.claude/skills/ui-ux-pro-max-new/SKILL.md`：UI/UX 设计相关技能，后续设计 HTML 报告页面时可参考。
+- `.agents/skills/code-review/SKILL.md`：Python 代码审查技能（工具检查 + 深度架构审查）。每次提交前必须使用。
+- 官方 `superpowers@Codex-plugins-official` 插件：已安装并启用，当前项目可直接使用；如需项目作用域安装，使用 `Codex plugin install -s project superpowers@Codex-plugins-official`。
+- `.agents/skills/req-doc-generator/SKILL.md`：需求文档生成相关技能，可用于需求补充和文档结构化。
+- `.agents/skills/ui-ux-pro-max/SKILL.md`：UI/UX 设计相关技能，后续设计 HTML 报告页面时可参考。
 
 以上技能源自 `/home/work2/MyProject/mwj-skills/skills`，升级时从该仓库同步对应目录。
 
-必须使用 `superpowers@claude-plugins-official` 的场景：
+必须使用 `superpowers@Codex-plugins-official` 的场景：
 
 - 复杂功能实现，例如 CLI、执行引擎、调度、断言、报告、变量、HTTP 协议等核心模块。
 - 需求、架构、核心约束或里程碑发生变化。
-- 修改 `README.md`、`CLAUDE.md`、`doc/需求规格说明书.md`、`doc/技术方案.md` 等项目指导文档。
+- 修改 `README.md`、`AGENTS.md`、`doc/需求规格说明书.md`、`doc/技术方案.md` 等项目指导文档。
 - 提交前质量门禁、跨文件重构、风险较高或影响范围不明确的任务。
 
 如果用户要求使用 skill、审查、提交前检查、复杂工作流或需求文档生成，优先使用对应技能或插件。
@@ -161,7 +161,7 @@ uv run python -X utf8 -m scripts.sync_agent_assets --check
 
 每次提交代码前必须进行 code review：
 
-1. 使用 `.claude/skills/py-code-review/SKILL.md` 对当前变更进行审查。
+1. 使用 `.agents/skills/code-review/SKILL.md` 对当前变更进行审查。
 2. 检查 `git status`、`git diff`、`git diff --cached`。
 3. 确认没有引入 pytest / Allure 作为核心能力。
 4. 确认文档与实现一致。
