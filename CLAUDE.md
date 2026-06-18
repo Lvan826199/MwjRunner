@@ -103,37 +103,26 @@ pytest 仅允许作为项目自身开发测试工具，用于测试 MwjRunner Py
 
 如果跳过文档同步直接提交代码，code review 阶段必须拦截并补齐文档。
 
-## Claude / Codex 同步约定
+## AI 助手三层隔离约定
 
-`CLAUDE.md` 和 `.claude/skills/` 是项目级智能体指南与技能的源内容。
+本仓库采用"规则、入口、记忆、本地私有配置"隔离维护：
 
-当需要给 Codex 使用时，不要手工维护第二份内容，统一运行：
+- `CLAUDE.md`：唯一完整规则源，维护项目规范、语言要求、提交规范、测试要求和文档同步策略。
+- `AGENTS.md`：Codex 入口文件，只引导 Codex 读取并遵守 `CLAUDE.md`，不得复制规则正文。
+- `MEMORY.md`：跨会话、跨机器共享的项目记忆，只记录非敏感偏好、长期注意事项和项目特殊约定。
+- `.claude/skills/` 和 `.agents/skills/`：项目共享技能目录，可以按需入库。
+- `.claude/settings*.json`、`.agents/settings*.json`、worktree、cache、`.agent/`、`.codex/`、`.Codex/`：本机工具私有配置、缓存、权限和机器路径，不入库、不互相同步。
 
-```bash
-uv run python -X utf8 -m scripts.sync_agent_assets --write
-```
-
-该命令会生成并更新：
-
-- `AGENTS.md`
-- `.agents/skills/`
-
-提交前可以运行同步检查：
-
-```bash
-uv run python -X utf8 -m scripts.sync_agent_assets --check
-```
-
-如果检查失败，先执行 `--write` 并确认差异，再按文件精确暂存。
+以后新增或调整助手规则时，只修改 `CLAUDE.md`；需要沉淀共享记忆时，只写入 `MEMORY.md`；需要共享技能时提交对应 `skills/` 子目录；不得把 token、账号、密码、Cookie、私有路径、权限白名单或其他敏感信息写入 `MEMORY.md` 或项目文件。
 
 ## 项目技能引用
 
-本项目使用以下 Claude Code 技能和插件：
+本项目优先使用当前工具会话中可用的项目技能和插件：
 
-- `.claude/skills/py-code-review/SKILL.md`：Python 代码审查技能（工具检查 + 深度架构审查）。每次提交前必须使用。
+- `code-review`：Python 代码审查技能（工具检查 + 深度架构审查）。每次提交前必须使用；如果当前工具未暴露该技能，按本文件"提交前必须执行"清单手工审查并在回复中说明。
 - 官方 `superpowers@claude-plugins-official` 插件：已安装并启用，当前项目可直接使用；如需项目作用域安装，使用 `claude plugin install -s project superpowers@claude-plugins-official`。
-- `.claude/skills/req-doc-generator/SKILL.md`：需求文档生成相关技能，可用于需求补充和文档结构化。
-- `.claude/skills/ui-ux-pro-max-new/SKILL.md`：UI/UX 设计相关技能，后续设计 HTML 报告页面时可参考。
+- `req-doc-generator`：需求文档生成相关技能，可用于需求补充和文档结构化。
+- `ui-ux-pro-max-new`：UI/UX 设计相关技能，后续设计 HTML 报告页面时可参考。
 
 以上技能源自 `/home/work2/MyProject/mwj-skills/skills`，升级时从该仓库同步对应目录。
 

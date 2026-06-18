@@ -318,14 +318,13 @@ uv run ruff format .
 
 集成测试中的 FastAPI 示例服务会自动分配空闲端口，并使用 `examples/api/.uv-cache` 作为独立 UV 缓存，避免本机已有 `127.0.0.1:8000` 旧服务或主项目缓存状态影响测试结果。
 
-### Claude / Codex 指南同步
+### AI 助手三层隔离
 
-`CLAUDE.md` 与 `.claude/skills/` 是源内容；`AGENTS.md` 与 `.agents/skills/` 由脚本生成：
-
-```bash
-uv run python -X utf8 -m scripts.sync_agent_assets --write
-uv run python -X utf8 -m scripts.sync_agent_assets --check
-```
+- `CLAUDE.md`：唯一完整规则源，维护所有项目级助手规则。
+- `AGENTS.md`：Codex 入口，只引导 Codex 读取并遵守 `CLAUDE.md`。
+- `MEMORY.md`：跨会话共享记忆，只记录非敏感偏好和长期注意事项。
+- `.claude/skills/`、`.agents/skills/`：项目共享技能目录，可按需入库。
+- `.claude/settings*.json`、`.agents/settings*.json`、worktree、cache、`.agent/`、`.codex/`、`.Codex/`：本机工具私有配置，不入库、不互相同步。
 
 ## 里程碑
 
