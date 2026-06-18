@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import socket
 import subprocess
 import time
@@ -51,9 +52,13 @@ def fastapi_server(repo_root: Path):
 
     port = _find_free_port()
     base_url = f"http://127.0.0.1:{port}"
+    env = os.environ.copy()
+    env["UV_CACHE_DIR"] = str(examples_api_dir / ".uv-cache")
+
     process = subprocess.Popen(
         ["uv", "run", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port)],
         cwd=str(examples_api_dir),
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )

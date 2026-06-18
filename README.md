@@ -308,10 +308,15 @@ doc/
 # 运行单元测试（pytest 仅用于项目自身开发测试）
 uv run pytest tests/unit/ -q
 
+# 运行集成测试（会自动启动 examples/api 示例服务）
+uv run pytest tests/integration/ -q
+
 # 代码格式化和检查
 uv run ruff check .
 uv run ruff format .
 ```
+
+集成测试中的 FastAPI 示例服务会自动分配空闲端口，并使用 `examples/api/.uv-cache` 作为独立 UV 缓存，避免本机已有 `127.0.0.1:8000` 旧服务或主项目缓存状态影响测试结果。
 
 ## 里程碑
 
