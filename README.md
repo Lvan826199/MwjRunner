@@ -300,6 +300,7 @@ doc/
 - `doc/技术方案.md`：架构设计
 - `doc/下一步计划.md`：任务管理
 - `doc/平台接入指南.md`：CI/CD 平台接入
+- `doc/发布质量门禁.md`：1.0.x 发布前质量门禁和黄金路径回归
 - `doc/部署手册.md`：生产环境部署指南
 
 ## 开发测试
@@ -314,9 +315,14 @@ uv run pytest tests/integration/ -q
 # 代码格式化和检查
 uv run ruff check .
 uv run ruff format .
+
+# 发布前本地质量门禁
+uv run python scripts/release_check.py
 ```
 
 集成测试中的 FastAPI 示例服务会自动分配空闲端口，并使用 `examples/api/.uv-cache` 作为独立 UV 缓存，避免本机已有 `127.0.0.1:8000` 旧服务或主项目缓存状态影响测试结果。
+
+发布质量门禁详见 `doc/发布质量门禁.md`。默认门禁只依赖本仓库和本地示例服务；如需覆盖外部 httpbin smoke，可运行 `uv run python scripts/release_check.py --include-httpbin`。
 
 ### AI 助手三层隔离
 
